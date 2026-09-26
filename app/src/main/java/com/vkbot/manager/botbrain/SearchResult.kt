@@ -8,7 +8,11 @@ import java.io.Serializable
  */
 data class SearchResult(
     val answer: AnswerElement,
-    val capturedGroups: List<String> = emptyList()
+    val capturedGroups: List<String> = emptyList(),
+    /** Уровень уверенности: 0 — лучший (точное совпадение), больше — хуже. */
+    val tier: Int = 0,
+    /** Оценка совпадения внутри уровня: 1 — полное, меньше — частичное. */
+    val score: Float = 1f
 ) : Serializable {
     
     fun hasGroups(): Boolean = capturedGroups.isNotEmpty()

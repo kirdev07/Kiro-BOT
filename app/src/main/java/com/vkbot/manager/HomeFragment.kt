@@ -67,7 +67,7 @@ class HomeFragment : Fragment() {
 
     private fun startStatusUpdater() {
         statusUpdaterJob?.cancel()
-        statusUpdaterJob = lifecycleScope.launch {
+        statusUpdaterJob = viewLifecycleOwner.lifecycleScope.launch {
             while (isActive) {
                 delay(1000)
                 updateBotsStatusList()
@@ -102,7 +102,7 @@ class HomeFragment : Fragment() {
 
     /** Загружает список ботов и показывает их статус на главном экране */
     private fun updateBotsStatusList() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             val newBotsList = withContext(Dispatchers.IO) {
                 val list = mutableListOf<BotUIState>()
                 val isServiceActuallyRunning = isServiceRunningInForeground(BotService::class.java)
@@ -240,12 +240,13 @@ class HomeFragment : Fragment() {
             requireContext().stopService(Intent(requireContext(), BotService::class.java))
         } catch (_: Exception) {}
 
+        val botIds = BotDataManager.loadBots(requireContext()).map { it.id }
         sharedPrefs.edit {
             putBoolean("bot_running", false)
-            for (i in 1..5) {
-                putLong("bot_${i}_start_time", 0L)
-                putLong("bot_${i}_processed", 0L)
-                putLong("bot_${i}_answered", 0L)
+            for (id in botIds) {
+                putLong("bot_${id}_start_time", 0L)
+                putLong("bot_${id}_processed", 0L)
+                putLong("bot_${id}_answered", 0L)
             }
         }
 
@@ -255,8 +256,9 @@ class HomeFragment : Fragment() {
     }
     
     private fun addLogToFile(message: String) {
+        val appContext = requireContext().applicationContext
         lifecycleScope.launch(Dispatchers.IO) {
-            BotService.logToFile(requireContext().applicationContext, "UI: $message")
+            BotService.logToFile(appContext, "UI: $message")
         }
     }
     

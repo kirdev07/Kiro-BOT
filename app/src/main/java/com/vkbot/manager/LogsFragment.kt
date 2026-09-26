@@ -61,7 +61,7 @@ class LogsFragment : Fragment() {
             .setTitle(R.string.clear_logs_title)
             .setMessage(R.string.clear_logs_confirm)
             .setPositiveButton(R.string.delete) { _, _ ->
-                lifecycleScope.launch(Dispatchers.IO) {
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         File(requireContext().filesDir, LOG_FILE_NAME).writeText("")
                         lastFileModifiedTime = 0
@@ -176,8 +176,8 @@ class LogsFragment : Fragment() {
             LogEntry(index.toLong(), line)
         }
         
-        withContext(Dispatchers.Main) {
-            if (!isAdded) return@withContext
+        withContext(Dispatchers.Main) main@{
+            if (_binding == null) return@main
 
             if (isFirstLoad) {
                 binding.recyclerViewLogs.alpha = 0f
@@ -205,7 +205,7 @@ class LogsFragment : Fragment() {
     }
     
     private fun startLogUpdates() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             updateLogs()
             
             while (isActive) {

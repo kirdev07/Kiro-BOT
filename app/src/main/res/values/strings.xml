@@ -1,22 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Kiro Bot</string>
-    <string name="title_home">Главная</string>
-    <string name="title_bots">Аккаунты</string>
-    <string name="title_editor">Редактор</string>
-    <string name="title_logs">Логи</string>
-    <string name="title_settings">Настройки</string>
-    <string name="title_blacklist">Защита</string>
 
     <!-- MainActivity / Разрешения -->
-    <string name="permission_required_title">Необходимы разрешения</string>
-    <string name="permission_required_message">Приложению требуется доступ к хранилищу для работы с базой данных и к уведомлениям для работы в фоне.</string>
-    <string name="grant_permission">Предоставить</string>
-    <string name="exit">Выход</string>
     <string name="storage_permission_title">Доступ к памяти</string>
     <string name="storage_permission_message">Приложению нужен доступ к памяти (%s) для работы с базой данных ответов.</string>
-    <string name="storage_permission_granted">Разрешение на память получено</string>
-    <string name="storage_permission_denied">Разрешение на память отклонено. Бот не сможет работать.</string>
     <string name="notifications_permission_title">Доступ к уведомлениям</string>
     <string name="notifications_permission_granted">Разрешение на уведомления получено</string>
     <string name="notifications_disabled_title">Уведомления отключены</string>
@@ -25,26 +13,39 @@
     <string name="storage_access_granted">Доступ к папке предоставлен</string>
     <string name="storage_access_denied">Доступ к папке отклонен</string>
     
-    <string name="check_file_error_format">Ошибка проверки файла: %s</string>
-    <string name="file_not_found_error_format">Файл не найден: %s</string>
-    <string name="db_not_found_message_format">База ответов не найдена в папке KirDev_BOT.\n\nПуть: %s\n\nБот не сможет отвечать, пока вы не добавите базу через Редактор или вручную.</string>
-    
     <string name="instruction_title">Инструкция</string>
     <string name="instruction_text"><![CDATA[
-        <b>Как пользоваться ботом:</b><br><br>
-        1. Перейдите в раздел <b>Аккаунты</b> и добавьте токен вашего профиля или сообщества.<br>
-        2. В разделе <b>Редактор</b> добавьте вопросы и соответствующие им ответы.<br>
-        3. Нажмите кнопку <b>Запустить бота</b> на главном экране.<br><br>
-        <i>Важно:</i> Бот использует Android Service для работы в фоновом режиме. Разрешите приложению работу без ограничений по энергии (в настройках батареи), чтобы система не убивала сервис.
+        <b>1. Добавьте бота</b><br>
+        Раздел <b>Боты</b> → «+» → выберите <b>VK</b> или <b>Telegram</b>.<br>
+        • <b>VK</b>: токен сообщества (Управление → Работа с API), права: сообщения, фотографии, документы. Включите Long Poll API.<br>
+        • <b>Telegram</b>: напишите @BotFather → /newbot → скопируйте токен. Для групп: /setprivacy → Disable.<br><br>
+        <b>2. Наполните базу</b><br>
+        Раздел <b>Редактор ответов</b>: вопрос → ответ. Можно писать просто ключевые слова — бот понимает формы слов, опечатки и длинные сообщения.<br>
+        • Несколько строк с одним вопросом — бот выбирает ответ случайно.<br>
+        • <b>Команды с картинками</b>: в поле «Вложения» — ссылка на картинку или GIF: прямая, страница сайта, пин Pinterest или результат поиска картинок Яндекса/Google (работает и в VK, и в Telegram). Видео и фото VK в Telegram приходят ссылкой.<br>
+        • <b>Синонимы и сленг</b>: файл kirdev_base/synonyms.txt, строка вида «что = че, чо, шо».<br>
+        • <b>Не знаю ответа</b>: кнопка-список в шапке редактора — вопросы, на которые бот не нашёл ответа, со счётчиком. Нажмите на вопрос, чтобы добавить ответ.<br><br>
+        <b>Обучение из чата</b><br>
+        Напишите боту <b>!id</b>, впишите свой ID в Настройки → «Управление из чата». Теперь только вам доступны: <b>!запомни вопрос = ответ</b>, <b>!забудь вопрос</b>, <b>!незнаю</b>, <b>!команды</b>.<br><br>
+        <b>3. Запустите</b><br>
+        Включите бота на карточке и нажмите <b>Запустить бота</b> на главном экране. Что происходит — видно в разделе <b>Логи</b>.<br><br>
+        <b>Беседы и группы</b>: включите в Настройках. Бот отвечает на префикс (по умолчанию «Бот,»), в Telegram — ещё на команды /…, упоминание и ответы на свои сообщения.<br><br>
+        <i>Важно:</i> разрешите приложению работу без ограничений батареи, иначе система может остановить бота в фоне.
     ]]></string>
-    
+
     <string name="about_bot">О боте</string>
     <string name="bot_description_title">О боте</string>
     <string name="bot_description_text"><![CDATA[
-        Kiro Bot — интеллектуальный помощник для автоматизации ответов в ВКонтакте.<br>
-        Разработано для удобного управления диалогами и автоматической модерации.<br><br>
-        <b>Политика конфиденциальности (Privacy Policy):</b><br>
-        Приложение работает полностью автономно и локально. Приложение <b>не собирает, не хранит и не передает</b> никакие пользовательские данные разработчику или третьим лицам. Все токены, настройки бота, логи и базы данных сохраняются исключительно на вашем устройстве.<br><br>
+        <b>Kiro Bot %1$s</b> — автоответчик для VK и Telegram на Android: база ответов, команды с картинками и видео, защита от спама. Работает в фоне 24/7.<br><br>
+        <b>Политика конфиденциальности</b><br>
+        • Приложение <b>не собирает и не передаёт разработчику</b> никаких данных: нет аналитики, рекламы и сторонних сервисов.<br>
+        • На устройстве хранятся: токен бота (<b>зашифрован</b> ключом Android Keystore), настройки, чёрный список, журнал работы (до 1 МБ, содержит имена собеседников), журнал «Не знаю ответа» (тексты вопросов без имён и ID, до 300 записей) и база ответов. База лежит в папке kirdev_base в памяти телефона — её могут прочитать приложения с доступом ко всем файлам.<br>
+        • Данные уходят только туда, где работает ваш бот: в <b>VK API</b> (api.vk.com) или <b>Telegram Bot API</b> (api.telegram.org) — сообщения, ответы и служебные запросы по вашему токену.<br>
+        • Если в ответах есть ссылки на картинки, бот скачивает их с указанных вами сайтов и загружает в VK или Telegram.<br>
+        • <b>ИИ-помощник</b> (выключен по умолчанию): если вы его включите, сообщения, на которые в базе нет ответа, вместе с именем собеседника и последними репликами разговора отправляются выбранному вами сервису ИИ (Anthropic, Google, Яндекс или указанный вами адрес) по вашему ключу. Ключ хранится на устройстве в зашифрованном виде.<br>
+        • Журналом можно поделиться только вручную кнопкой «Поделиться».<br>
+        • Чтобы удалить все данные: удалите приложение и папку kirdev_base.<br>
+        • Вы отвечаете за соблюдение правил VK и Telegram и за содержимое ответов бота.<br><br>
         <b>Лицензия и ограничения использования:</b><br>
         - Данное приложение предназначено <b>исключительно для личного использования</b>.<br>
         - <b>Категорически запрещается</b> модифицировать исходный код или дизайн приложения.<br>
@@ -54,20 +55,22 @@
 
     <string name="understood">Понятно</string>
     <string name="cancel">Отмена</string>
-    <string name="ok">ОК</string>
     <string name="next">Далее</string>
     <string name="later">Позже</string>
     <string name="allow">Разрешить</string>
     <string name="settings">Настройки</string>
 
     <!-- HomeFragment -->
+    <string name="home_subtitle">Бот для VK и Telegram</string>
+    <string name="home_why_text">Бот отвечает круглосуточно, поддерживает актив и создаёт атмосферу живого общения в диалогах, беседах и группах.</string>
+    <string name="home_features_text">• Умная база ответов: понимает длинные сообщения, формы слов, опечатки и сленг.\n• VK и Telegram — на выбор.\n• Команды с картинками, GIF и видео.\n• Защита от спама и чёрный список.\n• Фоновый режим 24/7.</string>
     <string name="status_disabled">Выключен</string>
     <string name="status_working">Работает</string>
     <string name="status_pending">Ожидание...</string>
     <string name="status_running">Статус: Работает</string>
     <string name="status_stopped">Статус: Остановлен</string>
     
-    <string name="no_active_bots_error">Нет активных ботов: добавьте и включите хотя бы одного бота в разделе Счётчики.</string>
+    <string name="no_active_bots_error">Нет активных ботов: добавьте и включите хотя бы одного бота в разделе «Боты».</string>
     <string name="log_init_start">Инициализация сервиса...</string>
     <string name="start_error_format">Ошибка старта: %s</string>
     <string name="log_start_error_format">Не удалось запустить ботов: %s</string>
@@ -76,13 +79,19 @@
     <string name="start_bot_btn">Запустить Бота</string>
 
     <!-- BotsFragment -->
-    <string name="max_bots_error">Максимум 5 ботов</string>
+    <string name="max_bots_error">Можно добавить только одного бота</string>
     <string name="add_bot_title">Добавление бота</string>
+    <string name="platform_vk">VK</string>
+    <string name="platform_telegram">Telegram</string>
+    <string name="token_hint_vk">Токен сообщества VK</string>
+    <string name="token_help_vk">Сообщество → Управление → Работа с API → Создать ключ (права: сообщения, фото, документы). Включите Long Poll API.</string>
+    <string name="token_hint_telegram">Токен Telegram-бота</string>
+    <string name="token_help_telegram">Напишите @BotFather → /newbot → скопируйте токен вида 123456789:AAE… Для групп: /setprivacy → Disable.</string>
+    <string name="token_format_error_telegram">Токен Telegram выглядит так: 123456789:AAE… — проверьте</string>
     <string name="add">Добавить</string>
     <string name="save">Сохранить</string>
     <string name="fill_all_fields_error">Заполните все поля</string>
     <string name="bot_name_exists_error">Бот с таким именем уже существует</string>
-    <string name="bot_token_exists_error">Бот с таким токеном уже существует</string>
     <string name="bot_added_success">Бот добавлен</string>
     <string name="bot_updated_success">Бот обновлен</string>
     <string name="edit_bot_title">Редактирование бота</string>
@@ -97,11 +106,11 @@
     <string name="status_auto_start_on">Активен (Авто-старт)</string>
     <string name="status_auto_start_off">Выключен</string>
     <string name="bot_status_changed_format">Бот \"%1$s\" %2$s</string>
-    <string name="bots_counter_format">Активных аккаунтов: %d</string>
+    <string name="bots_counter_format">Добавлено ботов: %d из 1</string>
+    <string name="bot_token_preview_format">%1$s · %2$s</string>
 
     <!-- AnswersEditorFragment -->
     <string name="selected_count_format">Выбрано: %d</string>
-    <string name="database_restored_from_backup">База восстановлена из резервной копии!</string>
     <string name="total_answers_format">Всего ответов: %d</string>
     <string name="add_answer_title">Добавить ответ</string>
     <string name="expand_settings">Развернуть настройки</string>
@@ -126,28 +135,70 @@
     <string name="database_reloaded_success">База данных успешно перезагружена</string>
     <string name="select_answers_to_delete">Выберите ответы для удаления</string>
 
-    <!-- SettingsFragment -->
-    <string name="expand_advanced_settings">Развернуть расширенные настройки</string>
-    <string name="collapse_advanced_settings">Свернуть расширенные настройки</string>
+    <!-- SettingsFragment: управление из чата -->
+    <string name="owner_title">Обучение</string>
+    <string name="unanswered_log_switch">Журнал «Не знаю ответа»</string>
+    <string name="unanswered_log_desc">Записывать вопросы, на которые в базе нет ответа (кнопка-список в редакторе). Выключите, если журнал не нужен — уже записанное останется, пока не очистите.</string>
+    <string name="owner_ids_hint">ID владельца (можно несколько через запятую)</string>
+    <string name="owner_desc">Только этим ID бот подчиняется командами:\n!запомни вопрос = ответ — добавить в базу\n!забудь вопрос — удалить из базы\n!незнаю — вопросы, на которые не было ответа\n!команды — список команд\n\nСвой ID узнаете, написав боту !id (работает для всех). Остальным эти команды недоступны — бот их просто игнорирует.</string>
+
+    <!-- AiFragment: ИИ-помощник -->
+    <string name="ai_title">ИИ-помощник</string>
+    <string name="ai_enable">Отвечать с помощью ИИ</string>
+    <string name="ai_enable_desc">Когда в вашей базе нет ответа, бот спросит ИИ вместо запасной фразы. Запросы оплачиваются у выбранного сервиса по вашему ключу — разработчик приложения ничего не получает. Ответы ИИ попадают в журнал «Не знаю ответа» как подсказки: их можно добавить в базу одним нажатием.</string>
+    <string name="ai_section_provider">Сервис и модель</string>
+    <string name="ai_provider">Сервис ИИ</string>
+    <string name="ai_model">Модель</string>
+    <string name="ai_api_key">API-ключ</string>
+    <string name="ai_api_key_optional">API-ключ (для локальной модели не нужен)</string>
+    <string name="ai_base_url">Адрес API</string>
+    <string name="ai_folder_id">Идентификатор каталога Yandex Cloud</string>
+    <string name="ai_section_behavior">Характер и ограничения</string>
+    <string name="ai_persona">Характер бота (инструкция для ИИ)</string>
+    <string name="ai_max_chars">Максимум символов в ответе</string>
+    <string name="ai_daily_limit">Лимит запросов в день</string>
+    <string name="ai_usage_today">Сегодня запросов к ИИ: %1$d из %2$d</string>
+    <string name="ai_in_chats">ИИ в беседах и группах</string>
+    <string name="ai_in_chats_desc">В беседах сообщений много — ИИ может быстро потратить лимит и деньги.</string>
+    <string name="ai_test">Проверить</string>
+    <string name="ai_testing">Проверяю…</string>
+    <string name="ai_test_ok_title">ИИ отвечает ✅</string>
+    <string name="ai_test_ok_format">%1$s\n\nОтвет за %2$.1f с.</string>
+    <string name="ai_test_fail_title">Не получилось ❌</string>
+    <string name="ai_help_claude">Ключ: console.anthropic.com → API Keys. Opus 5 — самый умный, Sonnet 5 — баланс цены и качества, Haiku 4.5 — самый дешёвый и быстрый. Короткий ответ стоит примерно: Opus 5 — 0,5 цента, Sonnet 5 — 0,2 цента, Haiku 4.5 — 0,1 цента.</string>
+    <string name="ai_help_gemini">Ключ: aistudio.google.com → Get API key. Flash — быстрый, Flash-Lite — ещё дешевле.</string>
+    <string name="ai_help_yandex">Yandex Cloud → сервисный аккаунт с ролью ai.languageModels.user → API-ключ. Идентификатор каталога — в консоли Yandex Cloud (начинается с b1g…).</string>
+    <string name="ai_help_openai">Подходит любой сервис с OpenAI-совместимым API: OpenAI, OpenRouter (сотни моделей по одному ключу), DeepSeek, Groq, Grok (xAI), Mistral и другие. Выберите адрес из списка или впишите свой, вставьте ключ и нажмите на поле «Модель» — список моделей загрузится сам. Для локальной модели Ollama / LM Studio на этом телефоне ключ не нужен.</string>
+
+    <string name="ai_models_loading">Загружаю список моделей…</string>
+    <string name="ai_models_need_url">Сначала укажите адрес API</string>
+    <string name="ai_models_failed">Не удалось загрузить модели: %1$s</string>
+    <string name="ai_models_empty">Сервис не вернул ни одной модели — впишите название вручную</string>
+
+    <!-- AnswersEditorFragment: журнал «Не знаю ответа» -->
+    <string name="unanswered_title">Не знаю ответа (%d)</string>
+    <string name="unanswered_empty">Журнал пуст: на все вопросы бот находил ответ 👍\n\nСюда попадают сообщения, на которые в базе нет ответа — со счётчиком, сколько раз их спрашивали.</string>
+    <string name="unanswered_item_format">%1$s  ×%2$d</string>
+    <string name="unanswered_add_answer">Добавить ответ</string>
+    <string name="unanswered_ai_suggestion_format">🤖 ИИ ответил:\n%s\n\nНажмите «Добавить ответ» — он подставится, можно поправить.</string>
+    <string name="unanswered_remove">Убрать из списка</string>
+    <string name="unanswered_clear_all">Очистить журнал</string>
+    <string name="unanswered_cleared">Журнал очищен</string>
+    <string name="unanswered_tooltip">Не знаю ответа</string>
 
     <!-- BlacklistFragment -->
     <string name="blacklist_user_removed_format">ID %s удален из ЧС</string>
     <string name="enter_id_error">Введите ссылку или ID</string>
     <string name="searching">Поиск...</string>
-    <string name="unknown_vk_id">Неизвестный VK ID</string>
+    <string name="unknown_vk_id">Неизвестный пользователь</string>
     <string name="user_not_found_error">Пользователь не найден</string>
-    <string name="vk_api_error">VK API Error</string>
-    <string name="no_bot_token_search_error">Добавьте работающего бота, чтобы искать по ссылкам</string>
+    <string name="vk_api_error">Ошибка VK API</string>
     <string name="no_token_numeric_id_error">Нет токена для поиска по имени. Введите числовой ID.</string>
     <string name="network_error">Ошибка сети</string>
     <string name="user_already_blacklisted_format">Пользователь %s уже в ЧС</string>
     <string name="user_blocked_success_format">%s заблокирован</string>
     <string name="blacklist_title_format">Система защиты (%d)</string>
 
-    <!-- Предупреждения для пользователей -->
-    <string name="warning_pipe_character">⚠️ ВАЖНО: Не используйте символ \'|\' (вертикальная черта) в ответах, это сломает базу данных!</string>
-    <string name="database_format_info">Формат базы данных: ВОПРОС|ОТВЕТ|ВЛОЖЕНИЯ\nСимвол \'|\' используется как разделитель полей.</string>
-    
     <!-- LogsFragment -->
     <string name="clear_logs_title">Очистить логи?</string>
     <string name="clear_logs_confirm">Вся история работы бота будет удалена. Продолжить?</string>
@@ -158,6 +209,7 @@
     
     <string name="only_attachments">(только вложения)</string>
     <string name="attachments_label_format">Вложения:\n%1$s</string>
+    <string name="attachments_hint">Вложения: ссылки на картинки (сайт, Pinterest, поиск картинок) или фото VK; видео — ссылкой (каждая с новой строки)</string>
     <string name="blacklist_item_format">%1$s (ID: %2$d)</string>
     
     <!-- BotsAdapter Styles & Formatting -->

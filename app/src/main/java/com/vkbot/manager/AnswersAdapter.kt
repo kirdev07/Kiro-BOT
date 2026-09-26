@@ -127,9 +127,7 @@ class AnswersAdapter(
             
             val attachments = answer.answerAttachments
             if (attachments.isNotEmpty()) {
-                val attachmentsStr = attachments.joinToString("\n") { 
-                    "https://vk.com/${it.toVkString()}"
-                }
+                val attachmentsStr = attachments.joinToString("\n") { it.toDisplayString() }
                 binding.tvAttachments.text = context.getString(R.string.attachments_label_format, attachmentsStr)
                 binding.tvAttachments.isVisible = true
             } else {

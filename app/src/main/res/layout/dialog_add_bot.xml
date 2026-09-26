@@ -1,9 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp">
+
+    <!-- Платформа -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/toggle_platform"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:singleSelection="true"
+        app:selectionRequired="true">
+
+        <Button
+            android:id="@+id/btn_platform_vk"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/platform_vk" />
+
+        <Button
+            android:id="@+id/btn_platform_telegram"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/platform_telegram" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
 
     <!-- Название бота -->
     <com.google.android.material.textfield.TextInputLayout
@@ -23,9 +50,12 @@
 
     <!-- Токен бота -->
     <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_bot_token"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Токен группы VK"
+        android:hint="@string/token_hint_vk"
+        app:helperText="@string/token_help_vk"
+        app:helperTextEnabled="true"
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
         <com.google.android.material.textfield.TextInputEditText

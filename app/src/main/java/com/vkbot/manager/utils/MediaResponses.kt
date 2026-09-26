@@ -14,7 +14,8 @@ object MediaResponses {
 
     fun init(context: Context) {
         if (fileManager == null) {
-            fileManager = AndroidFileManager(context)
+            // applicationContext: объект живёт всё время процесса, контекст сервиса здесь утёк бы
+            fileManager = AndroidFileManager(context.applicationContext)
         }
         loadAll()
     }

@@ -6,19 +6,11 @@
     <color name="bg_card_highlight">#222222</color>
     
     <!-- Primary (White & Light Grays) -->
-    <color name="violet_primary">#FFFFFF</color>
-    <color name="violet_dark">#E0E0E0</color>
-    <color name="violet_darker">#CCCCCC</color>
-    <color name="violet_deepest">#AAAAAA</color>
     <color name="violet_accent">#BBBBBB</color>
     
     <!-- Secondary Colors (Grays) -->
-    <color name="cyan_primary">#DDDDDD</color>
-    <color name="cyan_dark">#999999</color>
     
     <!-- Tertiary -->
-    <color name="tertiary_primary">#EEEEEE</color>
-    <color name="tertiary_dark">#888888</color>
     
     <!-- Text Colors -->
     <color name="text_high">#FFFFFF</color>
@@ -29,26 +21,14 @@
     <color name="white">#FFFFFF</color>
 
     <!-- Status Colors (Simplified to Monochrome) -->
-    <color name="accent_info">#CCCCCC</color>
-    <color name="accent_warning">#AAAAAA</color>
     <color name="accent_error">#444444</color>
-    <color name="accent_success">#FFFFFF</color>
     <color name="status_running_green">#FFFFFF</color>
     <color name="status_running_green_light">#E0E0E0</color>
     <color name="status_pending_orange">#FFA500</color>
     
     <!-- Progress Bar Colors -->
-    <color name="progress_bg">#222222</color>
-    <color name="progress_fill">#FFFFFF</color>
-    <color name="progress_glow">#E0E0E0</color>
     
     <!-- Gradient Colors -->
-    <color name="gradient_start">#FFFFFF</color>
-    <color name="gradient_end">#CCCCCC</color>
     
     <!-- Aliases -->
-    <color name="background">@color/bg_main</color>
-    <color name="surface">@color/bg_card</color>
-    <color name="text_primary">@color/text_high</color>
-    <color name="accent">@color/white</color>
 </resources>

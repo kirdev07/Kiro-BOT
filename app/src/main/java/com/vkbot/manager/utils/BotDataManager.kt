@@ -7,6 +7,17 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
+/** Мессенджер, в котором работает бот. */
+enum class BotPlatform(val id: String, val title: String) {
+    VK("vk", "VK"),
+    TELEGRAM("telegram", "Telegram");
+
+    companion object {
+        /** Старые версии не сохраняли платформу — это были боты VK. */
+        fun fromId(id: String?): BotPlatform = entries.firstOrNull { it.id == id } ?: VK
+    }
+}
+
 /**
  * Модель данных бота.
  */
@@ -17,7 +28,8 @@ data class Bot(
     var isRunning: Boolean = false,
     var processedMessages: Long = 0,
     var answeredMessages: Long = 0,
-    var startTime: Long = 0
+    var startTime: Long = 0,
+    var platform: BotPlatform = BotPlatform.VK
 )
 
 /**
@@ -29,8 +41,14 @@ object BotDataManager {
     private const val BOTS_FILE_NAME = "bots.json"
     private const val PREFS_NAME = "vk_bot_settings"
 
+    /** Приложение работает только с одним ботом. */
+    const val MAX_BOTS = 1
+
+    private val TOKEN_PREF_KEY = Regex("bot_\\d+_token")
+
     /**
      * Загружает список ботов, выполняя миграцию при необходимости.
+     * Лишние боты из старых версий (до 5 штук) отбрасываются.
      */
     fun loadBots(context: Context): List<Bot> {
         val list = mutableListOf<Bot>()
@@ -43,13 +61,17 @@ object BotDataManager {
                 val jsonString = file.readText(Charsets.UTF_8)
                 if (jsonString.isNotEmpty()) {
                     val arr = JSONArray(jsonString)
+                    var hasPlainToken = false
                     for (i in 0 until arr.length()) {
                         val obj = arr.getJSONObject(i)
                         val id = obj.optInt("id", i + 1)
                         val name = obj.optString("name", "")
-                        val token = obj.optString("token", "")
-                        
-                        if (name.isNotEmpty() && token.isNotEmpty()) {
+                        val storedToken = obj.optString("token", "")
+                        if (storedToken.isNotEmpty() && !TokenCrypto.isEncrypted(storedToken)) hasPlainToken = true
+                        // Пустой токен (не расшифровался на другом устройстве) — бот остаётся, токен вводится заново
+                        val token = TokenCrypto.decrypt(storedToken)
+
+                        if (name.isNotEmpty()) {
                             list.add(Bot(
                                 id = id,
                                 name = name,
@@ -57,10 +79,13 @@ object BotDataManager {
                                 isRunning = prefs.getBoolean("bot_${id}_running", false),
                                 processedMessages = prefs.getLong("bot_${id}_processed", 0),
                                 answeredMessages = prefs.getLong("bot_${id}_answered", 0),
-                                startTime = prefs.getLong("bot_${id}_start_time", 0)
+                                startTime = prefs.getLong("bot_${id}_start_time", 0),
+                                platform = BotPlatform.fromId(obj.optString("platform"))
                             ))
                         }
                     }
+                    // Файл от старой версии: шифруем токены сразу
+                    if (hasPlainToken && !keystoreBroken) saveBots(context, list)
                 }
             }
             
@@ -77,29 +102,30 @@ object BotDataManager {
         } catch (e: Exception) {
             Log.e(TAG, "Error loading bots", e)
         }
-        
-        return list
+
+        return list.take(MAX_BOTS)
     }
 
     /**
-     * Сохраняет список ботов во внутреннюю память и SharedPreferences.
+     * Сохраняет список ботов во внутреннюю память (токен — зашифрованным) и SharedPreferences (без токена).
      */
     fun saveBots(context: Context, bots: List<Bot>) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        
+
         // 1. Сохраняем в SharedPreferences для быстрого доступа сервиса
         prefs.edit {
             val activeIds = bots.map { it.id }.joinToString(",")
             putString("active_bot_ids", activeIds)
 
+            // Старые версии хранили токены открытым текстом — стираем
+            prefs.all.keys.filter { TOKEN_PREF_KEY.matches(it) }.forEach { remove(it) }
+
             bots.forEach { bot ->
                 putString("bot_${bot.id}_name", bot.name)
-                putString("bot_${bot.id}_token", bot.token)
                 putBoolean("bot_${bot.id}_running", bot.isRunning)
             }
-            apply()
         }
-        
+
         // 2. Сохраняем в JSON файл (внутренняя память)
         try {
             val file = File(context.filesDir, BOTS_FILE_NAME)
@@ -108,7 +134,8 @@ object BotDataManager {
                 jsonArray.put(JSONObject().apply {
                     put("id", bot.id)
                     put("name", bot.name)
-                    put("token", bot.token)
+                    put("token", encryptOrPlain(bot.token))
+                    put("platform", bot.platform.id)
                 })
             }
             file.writeText(jsonArray.toString(4), Charsets.UTF_8)
@@ -116,6 +143,18 @@ object BotDataManager {
             Log.e(TAG, "Error saving bots to file", e)
         }
     }
+
+    /** Если Keystore недоступен, лучше сохранить токен как есть, чем потерять его. */
+    private fun encryptOrPlain(token: String): String = try {
+        TokenCrypto.encrypt(token)
+    } catch (e: Exception) {
+        Log.e(TAG, "Keystore недоступен, токен сохранён без шифрования", e)
+        keystoreBroken = true
+        token
+    }
+
+    /** Не пытаться пересохранять токены при каждой загрузке, если Keystore не работает. */
+    @Volatile private var keystoreBroken = false
 
     private fun migrateFromExternal(context: Context, list: MutableList<Bot>) {
         try {
@@ -168,7 +207,7 @@ object BotDataManager {
 
         idList.forEach { id ->
             val name = prefs.getString("bot_${id}_name", null)
-            val token = prefs.getString("bot_${id}_token", null)
+            val token = prefs.getString("bot_${id}_token", null)?.let { TokenCrypto.decrypt(it) }
             if (name != null && token != null) {
                 list.add(Bot(
                     id = id,

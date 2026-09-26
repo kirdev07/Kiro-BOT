@@ -146,7 +146,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:hint="VK вложения"
+                    android:hint="@string/attachments_hint"
                     android:textColorHint="@color/text_low"
                     android:textColor="@color/white"
                     android:textSize="16sp"

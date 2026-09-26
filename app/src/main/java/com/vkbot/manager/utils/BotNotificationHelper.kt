@@ -20,7 +20,7 @@ import com.vkbot.manager.R
 object BotNotificationHelper {
 
     const val CHANNEL_ID = "VK_BOT_CHANNEL_V3"
-    private const val CHANNEL_NAME = "VK Bot Status"
+    private const val CHANNEL_NAME = "Статус бота"
     private const val CHANNEL_DESC = "Статус работы бота"
 
     /**
@@ -62,9 +62,9 @@ object BotNotificationHelper {
         )
 
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("Kiro Bot VK")
+            .setContentTitle(context.getString(R.string.app_name))
             .setContentText(text)
-            .setSmallIcon(R.drawable.logo)
+            .setSmallIcon(R.drawable.ic_bot)
             .setContentIntent(contentIntent)
             .setDeleteIntent(deletePendingIntent)
             .setOngoing(true)

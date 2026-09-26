@@ -11,8 +11,8 @@ android {
         applicationId "com.vkbot.manager"
         minSdk 30
         targetSdk 34
-        versionCode 3
-        versionName "2.10 (Final)"
+        versionCode 4
+        versionName "2.20"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
@@ -21,8 +21,25 @@ android {
         }
     }
 
+    // Ключ подписи — в keystore.properties рядом с проектом (не хранится в git), см. keystore.properties.example
+    def keystorePropsFile = rootProject.file("keystore.properties")
+    def keystoreProps = new Properties()
+    if (keystorePropsFile.exists()) keystorePropsFile.withInputStream { keystoreProps.load(it) }
+
+    signingConfigs {
+        if (keystorePropsFile.exists()) {
+            release {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (keystorePropsFile.exists()) signingConfig signingConfigs.release
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -41,6 +58,18 @@ android {
         jvmTarget = '21'
     }
     
+    packaging {
+        resources {
+            // Служебные файлы лицензий из библиотек Apache HTTP (зависимость SDK Anthropic) дублируются
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*', 'META-INF/INDEX.LIST']
+        }
+    }
+
+    testOptions {
+        // android.util.Log в JVM-тестах возвращает значения по умолчанию вместо исключения
+        unitTests.returnDefaultValues = true
+    }
+
     buildFeatures {
         viewBinding true
         buildConfig true
@@ -52,17 +81,17 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.10.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.lifecycle:lifecycle-service:2.7.0'
-    implementation 'androidx.work:work-runtime-ktx:2.8.1'
-    
-    implementation 'androidx.preference:preference-ktx:1.2.1'
-    implementation 'androidx.viewpager2:viewpager2:1.0.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4'
     
     // JSON обработка
     implementation 'org.json:json:20230618'
+
+    // ИИ-помощник: официальный SDK Anthropic (Claude)
+    implementation 'com.anthropic:anthropic-java:2.34.0'
     
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }

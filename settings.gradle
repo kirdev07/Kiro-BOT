@@ -6,5 +6,5 @@ pluginManagement {
     }
 }
 
-rootProject.name = "VK Bot Manager"
+rootProject.name = "Kiro Bot"
 include ':app'

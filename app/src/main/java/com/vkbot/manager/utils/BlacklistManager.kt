@@ -7,7 +7,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
-data class BlockedUser(val id: Int, val name: String)
+data class BlockedUser(val id: Long, val name: String)
 
 /**
  * Менеджер для хранения и управления Черным Списком (Blacklist).
@@ -18,7 +18,7 @@ object BlacklistManager {
     private const val FILE_NAME = "blacklist.json"
     
     // Используем потокобезопасную коллекцию Key -> Object
-    private val blacklistedUsers = ConcurrentHashMap<Int, BlockedUser>()
+    private val blacklistedUsers = ConcurrentHashMap<Long, BlockedUser>()
     private var file: File? = null
 
     /**
@@ -35,14 +35,14 @@ object BlacklistManager {
     /**
      * Проверка: находится ли пользователь в ЧС
      */
-    fun isBlacklisted(userId: Int): Boolean {
+    fun isBlacklisted(userId: Long): Boolean {
         return blacklistedUsers.containsKey(userId)
     }
 
     /**
      * Добавление пользователя в ЧС
      */
-    fun add(userId: Int, name: String = "Неизвестный VK ID") {
+    fun add(userId: Long, name: String = "Неизвестный ID") {
         if (!blacklistedUsers.containsKey(userId)) {
             blacklistedUsers[userId] = BlockedUser(userId, name)
             Log.i(TAG, "Пользователь $userId ($name) добавлен в ЧС")
@@ -53,7 +53,7 @@ object BlacklistManager {
     /**
      * Удаление пользователя из ЧС
      */
-    fun remove(userId: Int) {
+    fun remove(userId: Long) {
         if (blacklistedUsers.remove(userId) != null) {
             Log.i(TAG, "Пользователь $userId удален из ЧС")
             save()
@@ -78,12 +78,13 @@ object BlacklistManager {
                     
                     for (i in 0 until array.length()) {
                         val element = array.get(i)
-                        // Поддержка старого формата (массив Int) и нового (массив JSONObject)
-                        if (element is Int) {
-                            blacklistedUsers[element] = BlockedUser(element, "VK ID: $element")
+                        // Поддержка старого формата (массив чисел) и нового (массив JSONObject)
+                        if (element is Number) {
+                            val id = element.toLong()
+                            blacklistedUsers[id] = BlockedUser(id, "ID: $id")
                         } else if (element is JSONObject) {
-                            val id = element.getInt("id")
-                            val name = element.optString("name", "VK ID: $id")
+                            val id = element.getLong("id")
+                            val name = element.optString("name", "ID: $id")
                             blacklistedUsers[id] = BlockedUser(id, name)
                         }
                     }

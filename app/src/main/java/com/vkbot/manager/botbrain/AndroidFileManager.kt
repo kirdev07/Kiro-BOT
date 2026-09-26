@@ -3,6 +3,7 @@ package com.vkbot.manager.botbrain
 import android.content.Context
 import android.os.Environment
 import android.util.Log
+import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -13,7 +14,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Менеджер файлов для работы с базой данных (переведено на Kotlin).
+ * Файлы базы: answer.txt, синонимы, медиа-ответы и счётчики в папке kirdev_base.
  */
 class AndroidFileManager(private val context: Context) {
 
@@ -108,7 +109,8 @@ class AndroidFileManager(private val context: Context) {
             databaseFile.bufferedReader(StandardCharsets.UTF_8).useLines { lines ->
                 var id = 1L
                 for (rawLine in lines) {
-                    val line = rawLine.trim()
+                    // BOM в начале файла не считается пробелом и не убирается trim()
+                    val line = rawLine.removePrefix(BOM).trim()
                     if (line.isEmpty() || line.startsWith("#")) continue
 
                     val parts = line.split("|", limit = 7)
@@ -151,7 +153,63 @@ class AndroidFileManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "❌ Ошибка чтения БД", e)
         }
+        applyUsageStats(answers, loadUsageStats())
         return answers
+    }
+
+    private val usageStatsFile: File
+        get() = File(folder, USAGE_STATS_FILE_NAME)
+
+    private fun loadUsageStats(): Map<String, Int> {
+        val file = usageStatsFile
+        if (!file.exists()) return emptyMap()
+        return try {
+            val json = JSONObject(file.readText(StandardCharsets.UTF_8))
+            json.keys().asSequence().associateWith { json.optInt(it, 0) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка чтения $USAGE_STATS_FILE_NAME", e)
+            emptyMap()
+        }
+    }
+
+    /** Сохраняет счётчики использования отдельно от answer.txt, чтобы не затирать правки редактора. */
+    fun saveUsageStats(answers: List<AnswerElement>): Boolean {
+        val tempFile = File(folder, "$USAGE_STATS_FILE_NAME.tmp")
+        return try {
+            tempFile.writeText(JSONObject(collectUsageStats(answers)).toString(), StandardCharsets.UTF_8)
+            atomicReplace(tempFile, usageStatsFile)
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка сохранения $USAGE_STATS_FILE_NAME", e)
+            false
+        }
+    }
+
+    private val unansweredFile: File
+        get() = File(folder, UNANSWERED_FILE_NAME)
+
+    fun loadUnanswered(): UnansweredLog =
+        if (unansweredFile.exists()) UnansweredLog.fromJson(runCatching { unansweredFile.readText(StandardCharsets.UTF_8) }.getOrDefault(""))
+        else UnansweredLog()
+
+    fun saveUnanswered(log: UnansweredLog): Boolean {
+        val tempFile = File(folder, "$UNANSWERED_FILE_NAME.tmp")
+        return try {
+            tempFile.writeText(log.toJson(), StandardCharsets.UTF_8)
+            atomicReplace(tempFile, unansweredFile).also { if (it) log.markSaved() }
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка сохранения $UNANSWERED_FILE_NAME", e)
+            false
+        }
+    }
+
+    /** Копирует текущую базу в answer.bak (предыдущая версия) и сохраняет новую. */
+    fun saveAnswerDatabaseWithBackup(answers: List<AnswerElement>): Boolean {
+        try {
+            if (databaseFile.exists()) databaseFile.copyTo(File(folder, "answer.bak"), overwrite = true)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Ошибка создания бэкапа: ${e.message}")
+        }
+        return saveAnswerDatabase(answers)
     }
 
     fun saveAnswerDatabase(answers: List<AnswerElement>): Boolean {
@@ -160,7 +218,7 @@ class AndroidFileManager(private val context: Context) {
 
         try {
             tempFile.bufferedWriter(StandardCharsets.UTF_8).use { writer ->
-                writer.write("# База ответов Kiro Bot Vk (UTF-8)")
+                writer.write("# База ответов Kiro Bot (UTF-8)")
                 writer.newLine()
                 writer.write("# Формат: ВОПРОС|ОТВЕТ|ВЛОЖЕНИЯ|ЛИМИТ|СЧЕТЧИК|REQ_CTX|RES_CTX")
                 writer.newLine()
@@ -195,7 +253,7 @@ class AndroidFileManager(private val context: Context) {
 
     private fun serializeAttachments(attachments: List<Attachment>?): String {
         if (attachments.isNullOrEmpty()) return ""
-        return attachments.joinToString(",") { it.toVkString() }
+        return attachments.joinToString(",") { it.toStorageString() }
     }
 
     private fun tryParseInt(valStr: String): Int {
@@ -227,7 +285,7 @@ class AndroidFileManager(private val context: Context) {
             try {
                 file.bufferedReader(StandardCharsets.UTF_8).useLines { sequence ->
                     for (line in sequence) {
-                        val trim = line.trim()
+                        val trim = line.removePrefix(BOM).trim()
                         if (trim.isNotEmpty() && !trim.startsWith("#")) {
                             lines.add(trim)
                         }
@@ -251,5 +309,31 @@ class AndroidFileManager(private val context: Context) {
         private const val FOLDER_NAME = "kirdev_base"
         private const val FILE_NAME = "answer.txt"
         private const val ASSET_NAME = "answer.txt"
+        private val BOM = Char(0xFEFF).toString()
+        private const val USAGE_STATS_FILE_NAME = "usage_stats.json"
+        private const val UNANSWERED_FILE_NAME = "unanswered.json"
+
+        /** Добавляет ответ в конец базы (id — следующий после максимального). */
+        internal fun withAnswer(answers: List<AnswerElement>, question: String, answer: String): List<AnswerElement> =
+            answers + AnswerElement(id = (answers.maxOfOrNull { it.id } ?: 0) + 1, questionText = question.trim(), answerText = answer.trim())
+
+        /** Убирает все ответы на вопрос (без учёта регистра, знаков и ё). @return новый список и сколько убрано */
+        internal fun withoutQuestion(answers: List<AnswerElement>, question: String): Pair<List<AnswerElement>, Int> {
+            val key = UnansweredLog.keyOf(question)
+            if (key.isEmpty()) return answers to 0
+            val kept = answers.filter { UnansweredLog.keyOf(it.questionText) != key }
+            return kept to (answers.size - kept.size)
+        }
+
+        /** id ответа меняется при каждой загрузке, поэтому ключ — сам вопрос и ответ. */
+        internal fun usageKey(e: AnswerElement) = "${e.questionText.lowercase(Locale.ROOT)}|${e.answerText}"
+
+        internal fun applyUsageStats(answers: List<AnswerElement>, stats: Map<String, Int>) {
+            if (stats.isEmpty()) return
+            for (e in answers) stats[usageKey(e)]?.let { e.usageCount = it }
+        }
+
+        internal fun collectUsageStats(answers: List<AnswerElement>): Map<String, Int> =
+            answers.filter { it.usageCount > 0 }.associate { usageKey(it) to it.usageCount }
     }
 }

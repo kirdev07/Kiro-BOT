@@ -119,6 +119,7 @@ class MainActivity : AppCompatActivity() {
                             R.id.nav_bots -> BotsFragment()
                             R.id.nav_logs -> LogsFragment()
                             R.id.nav_editor -> AnswersEditorFragment()
+                            R.id.nav_ai -> AiFragment()
                             R.id.nav_blacklist -> BlacklistFragment()
                             R.id.nav_settings -> SettingsFragment()
                             else -> null
@@ -165,7 +166,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkAndRequestPermissions() {
-        if (!PermissionHelper.hasStoragePermissions(this)) {
+        if (!PermissionHelper.hasStoragePermissions()) {
             MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.storage_permission_title)
                 .setMessage(getString(R.string.storage_permission_message, Environment.getExternalStorageDirectory().path))
@@ -223,13 +224,6 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         
         when (requestCode) {
-            PermissionHelper.REQUEST_CODE_STORAGE -> {
-                if (PermissionHelper.hasStoragePermissions(this)) {
-                    Toast.makeText(this, R.string.storage_permission_granted, Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, R.string.storage_permission_denied, Toast.LENGTH_LONG).show()
-                }
-            }
             NotificationPermissionHelper.REQUEST_CODE_NOTIFICATION_PERMISSION -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Toast.makeText(this, R.string.notifications_permission_granted, Toast.LENGTH_SHORT).show()
@@ -308,7 +302,7 @@ class MainActivity : AppCompatActivity() {
     private fun showAboutDialog() {
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.bot_description_title)
-            .setMessage(Html.fromHtml(getString(R.string.bot_description_text), Html.FROM_HTML_MODE_COMPACT))
+            .setMessage(Html.fromHtml(getString(R.string.bot_description_text, BuildConfig.VERSION_NAME), Html.FROM_HTML_MODE_COMPACT))
             .setPositiveButton(android.R.string.ok, null)
             .show()
     }

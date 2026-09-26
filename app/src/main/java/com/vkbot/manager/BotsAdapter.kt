@@ -17,7 +17,7 @@ import java.util.Locale
 
 /**
  * Адаптер для списка ботов.
- * Рефакторинг v2.1.0: оптимизация ресурсов и чистка кода.
+ * Карточки ботов: статус, статистика, время работы, кнопки управления.
  */
 class BotsAdapter(
     private val onEdit: (Bot) -> Unit,
@@ -29,9 +29,11 @@ class BotsAdapter(
     private var bots = listOf<Bot>()
     
     fun updateBots(newBots: List<Bot>) {
-        val diffCallback = BotDiffCallback(bots, newBots)
+        // Храним копии: фрагмент меняет Bot на месте, и без копий DiffUtil не увидит изменений
+        val snapshot = newBots.map { it.copy() }
+        val diffCallback = BotDiffCallback(bots, snapshot)
         val diffResult = DiffUtil.calculateDiff(diffCallback)
-        bots = newBots
+        bots = snapshot
         diffResult.dispatchUpdatesTo(this)
     }
     
@@ -50,7 +52,8 @@ class BotsAdapter(
                 tvBotName.text = bot.name
                 
                 // Улучшенное скрытие токена
-                tvBotTokenHint.text = if (bot.token.length > 10) "${bot.token.take(8)}..." else "vk1.a..."
+                val tokenPreview = if (bot.token.length > 10) "${bot.token.take(8)}..." else "—"
+                tvBotTokenHint.text = context.getString(R.string.bot_token_preview_format, bot.platform.title, tokenPreview)
                 
                 llCopyToken.setOnClickListener {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

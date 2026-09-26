@@ -20,3 +20,9 @@ release_log.txt
 /tmp/
 /.vscode/
 /app/release/
+/backup/
+keystore.properties
+*.jks
+*.keystore
+# Ключ подписи — никогда не в git
+/key/

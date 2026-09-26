@@ -3,20 +3,49 @@ package com.vkbot.manager.botbrain
 import android.content.Context
 import android.util.Log
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.regex.Pattern
+import kotlin.math.ln
 import kotlin.math.min
+import kotlin.math.sqrt
 
 /**
- * Оптимизированная база данных ответов с LRU-кэшем и безопасной инициализацией (переведено на Kotlin).
+ * База ответов с индексами для поиска.
+ *
+ * Уровни поиска (чем меньше tier, тем приоритетнее):
+ * 0–1 точное совпадение фразы, 2–3 regex/маски, 4–5 совпадение по смыслу слов,
+ * 6–7 слабое совпадение (используется, только если лучших нет).
+ * Чётный уровень — ответы с совпавшим контекстом диалога.
  */
-class AnswerDatabase(context: Context?) {
+class AnswerDatabase private constructor(
+    val fileManager: AndroidFileManager?,
+    presetAnswers: List<AnswerElement>?,
+    private val presetSynonyms: Map<String, String>?
+) {
+
+    constructor(context: Context?) : this(context?.let { AndroidFileManager(it) }, null, null)
+
+    /** Для unit-тестов: база из готового списка, без файлов. */
+    internal constructor(answers: List<AnswerElement>, synonyms: Map<String, String> = emptyMap()) :
+        this(null, answers, synonyms)
+
+    /** Разобранный вопрос: основы слов и их суммарный вес. */
+    private class QuestionInfo(val stems: List<String>, val weight: Double)
+
+    /** Часть сообщения: основы слов, вес и доля от веса всего сообщения. */
+    private class Segment(val stems: Set<String>, val weight: Double, val share: Double)
 
     private val answers = mutableMapOf<Long, AnswerElement>()
-    val fileManager: AndroidFileManager? = context?.let { AndroidFileManager(it) }
 
     // Индексы для быстрого поиска
     private val exactMatchIndex = mutableMapOf<String, MutableList<AnswerElement>>()
     private val keywordIndex = mutableMapOf<String, MutableList<AnswerElement>>()
+    private val questionInfo = mutableMapOf<Long, QuestionInfo>()
+
+    /** Вес слова: редкие в базе слова («питон») важнее частых («как», «ты»). */
+    private var idf = mapOf<String, Double>()
+    private var unknownWordIdf = 1.0
+    private var synonyms = mapOf<String, String>()
 
     // Кэш значений для быстрого getRandomAnswer
     private var cachedValueList = listOf<AnswerElement>()
@@ -24,51 +53,51 @@ class AnswerDatabase(context: Context?) {
     // Индекс для регулярных выражений
     private val regexIndex = mutableMapOf<AnswerElement, Pattern>()
 
+    private val usageDirty = AtomicBoolean(false)
+
     init {
-        Log.i(TAG, "📱 === AnswerDatabase v2.1.1 (Kotlin) ===")
-        // Синхронная загрузка
-        loadFromFile()
+        loadFromFile(presetAnswers)
     }
 
     /**
      * Загрузка базы данных с построением индексов.
      */
-    private fun loadFromFile() {
+    private fun loadFromFile(presetAnswers: List<AnswerElement>? = null) {
         val startTime = System.currentTimeMillis()
 
-        val loadedAnswers = fileManager?.loadAnswerDatabase() ?: emptyList()
+        val loadedAnswers = presetAnswers ?: fileManager?.loadAnswerDatabase() ?: emptyList()
+        val loadedSynonyms = presetSynonyms
+            ?: fileManager?.let { TextAnalyzer.parseSynonyms(it.loadTxtList(SYNONYMS_FILE_NAME)) }
+            ?: emptyMap()
 
         synchronized(answers) {
             answers.clear()
             exactMatchIndex.clear()
             keywordIndex.clear()
+            questionInfo.clear()
             regexIndex.clear()
+            synonyms = loadedSynonyms
 
+            val questionStems = mutableMapOf<Long, List<String>>()
             for (answer in loadedAnswers) {
                 answers[answer.id] = answer
-                // Строим индексы для быстрого поиска
-                buildIndexesForAnswer(answer)
+                buildIndexesForAnswer(answer)?.let { questionStems[answer.id] = it }
             }
-            // Обновляем кэш значений
+            buildWeights(questionStems)
             cachedValueList = answers.values.toList()
         }
 
         val loadTime = System.currentTimeMillis() - startTime
-        Log.i(TAG, "⚡ База данных загружена (${answers.size} эл.) за ${loadTime}мс")
+        Log.i(TAG, "⚡ База данных загружена (${answers.size} эл., синонимов: ${synonyms.size}) за ${loadTime}мс")
     }
 
-    private fun buildIndexesForAnswer(answer: AnswerElement) {
-        val questionLower = normalizeText(answer.questionText)
+    /** @return основы слов вопроса или null для regex/масок. */
+    private fun buildIndexesForAnswer(answer: AnswerElement): List<String>? {
+        val questionLower = answer.questionText.lowercase(Locale.getDefault()).trim()
 
         // Поддержка масок со звездочкой
         if (questionLower.contains("*") && !questionLower.startsWith("regex:")) {
-            val patternStr = questionLower
-                .replace(".", "\\.")
-                .replace("?", "\\?")
-                .replace("+", "\\+")
-                .replace("(", "\\(")
-                .replace(")", "\\)")
-                .replace("*", "(.*)")
+            val patternStr = questionLower.split("*").joinToString("(.*)") { Pattern.quote(it) }
 
             try {
                 val pattern = Pattern.compile(patternStr, Pattern.CASE_INSENSITIVE or Pattern.UNICODE_CASE)
@@ -76,38 +105,54 @@ class AnswerDatabase(context: Context?) {
             } catch (e: Exception) {
                 Log.e(TAG, "Ошибка компиляции маски: $questionLower", e)
             }
-            return
+            return null
         }
 
         // Проверка на Regex
         if (questionLower.startsWith("regex:")) {
             try {
-                val patternStr = questionLower.substring(6).trim()
-                val pattern = Pattern.compile(patternStr, Pattern.CASE_INSENSITIVE)
+                // Берём исходный текст: lowercase ломает \S, \D, \W и т.п.
+                val patternStr = answer.questionText.trim().substring(6).trim()
+                val pattern = Pattern.compile(patternStr, Pattern.CASE_INSENSITIVE or Pattern.UNICODE_CASE)
                 regexIndex[answer] = pattern
             } catch (e: Exception) {
                 Log.e(TAG, "Ошибка компиляции regex: $questionLower", e)
             }
-            return
+            return null
         }
 
-        // Индекс точного совпадения
-        exactMatchIndex.getOrPut(questionLower) { mutableListOf() }.add(answer)
+        val tokens = TextAnalyzer.tokens(answer.questionText, synonyms)
+        if (tokens.isEmpty()) return null
 
-        // Индекс по ключевым словам
-        val cleanText = questionLower.replace(Regex("[^a-zA-Zа-яА-Я0-9 ]"), " ")
-        val words = cleanText.split("\\s+".toRegex())
+        // Индекс точного совпадения: без знаков препинания, ё = е, с учётом синонимов
+        exactMatchIndex.getOrPut(tokens.joinToString(" ")) { mutableListOf() }.add(answer)
 
-        for (word in words) {
-            if (word.length >= 2) {
-                keywordIndex.getOrPut(word) { mutableListOf() }.add(answer)
-            }
+        // Индекс по основам слов
+        val stems = tokens.map { TextAnalyzer.stem(it) }.distinct()
+        for (stem in stems) {
+            keywordIndex.getOrPut(stem) { mutableListOf() }.add(answer)
+        }
+        return stems
+    }
+
+    private fun buildWeights(questionStems: Map<Long, List<String>>) {
+        val n = questionStems.size.toDouble()
+        // Квадрат IDF: иначе веса слишком плоские и набор частых слов («у меня сегодня») перевешивает редкое «начальник»
+        fun weight(df: Int): Double { val v = ln((n + 1) / (df + 1)) + 1.0; return v * v }
+        idf = keywordIndex.mapValues { (_, list) -> weight(list.size) }
+        unknownWordIdf = weight(0)
+        for ((id, stems) in questionStems) {
+            questionInfo[id] = QuestionInfo(stems, stems.sumOf { weightOf(it) })
         }
     }
 
-    private fun normalizeText(text: String?): String {
-        return text?.lowercase(Locale.getDefault())?.trim() ?: ""
-    }
+    /** Вес слова вопроса: служебные слова не несут смысла. */
+    private fun weightOf(stem: String): Double =
+        if (stem in STOP_WORDS) 0.0 else idf[stem] ?: unknownWordIdf
+
+    /** Вес слова сообщения: незнакомые базе слова сопоставить не с чем — они не учитываются. */
+    private fun messageWeightOf(stem: String): Double =
+        if (stem in STOP_WORDS) 0.0 else idf[stem] ?: 0.0
 
     /**
      * Интеллектуальный поиск ответов с учетом контекста и Regex.
@@ -117,147 +162,128 @@ class AnswerDatabase(context: Context?) {
             return emptyList()
         }
 
-        val queryLower = query.lowercase(Locale.getDefault()).trim()
-        val queryNormalized = queryLower.replace(Regex("[^a-zа-я0-9 ]"), " ").trim()
-        val queryWords = queryNormalized.split("\\s+".toRegex())
+        val userCtx = userContext ?: ""
+        val tokens = TextAnalyzer.tokens(query, synonyms)
 
-        // Временные списки для разных уровней уверенности
         val exactContextual = mutableListOf<SearchResult>()
         val exactGeneral = mutableListOf<SearchResult>()
-        val candidateSet = mutableSetOf<AnswerElement>()
         val regexContextual = mutableListOf<SearchResult>()
         val regexGeneral = mutableListOf<SearchResult>()
-
-        val userCtx = userContext ?: ""
+        val smartContextual = mutableListOf<SearchResult>()
+        val smartGeneral = mutableListOf<SearchResult>()
+        val weakContextual = mutableListOf<SearchResult>()
+        val weakGeneral = mutableListOf<SearchResult>()
 
         synchronized(answers) {
-            // 1. Быстрый поиск точного совпадения (O(1))
-            val exacts = exactMatchIndex[queryLower]
-            if (exacts != null) {
-                for (e in exacts) {
-                    val sr = SearchResult(e)
-                    if (e.requiredContext.equals(userCtx, ignoreCase = true) && e.requiredContext.isNotEmpty()) {
-                        exactContextual.add(sr)
-                    } else if (e.requiredContext.isEmpty()) {
-                        exactGeneral.add(sr)
-                    }
+            // 1. Точное совпадение фразы
+            exactMatchIndex[tokens.joinToString(" ")]?.forEach { e ->
+                addByContext(SearchResult(e), userCtx, exactContextual, exactGeneral)
+            }
+
+            // 2. Regex и маски
+            for ((e, pattern) in regexIndex) {
+                val matcher = pattern.matcher(query)
+                if (matcher.find()) {
+                    val groups = (0..matcher.groupCount()).map { matcher.group(it) ?: "" }
+                    addByContext(SearchResult(e, groups), userCtx, regexContextual, regexGeneral)
                 }
             }
 
-            // 2. Сбор кандидатов по словам
-            for (word in queryWords) {
-                if (word.length >= 2) {
-                    val matches = keywordIndex[word]
-                    if (matches != null) {
-                        candidateSet.addAll(matches)
-                    }
-                }
+            // 3. Совпадение по смыслу слов
+            val alreadyFound = (exactContextual + exactGeneral + regexContextual + regexGeneral)
+                .mapTo(HashSet()) { it.answer.id }
+            val segments = buildSegments(query)
+            val allStems = segments.first().stems
+
+            val candidates = LinkedHashSet<AnswerElement>()
+            for (stem in allStems) {
+                if (stem !in STOP_WORDS) keywordIndex[stem]?.let { candidates.addAll(it) }
+            }
+            // Маленькая база: полный перебор, чтобы находить слова с опечатками
+            if (candidates.isEmpty() && exactGeneral.isEmpty() && answers.size < 2000) {
+                candidates.addAll(answers.values)
             }
 
-            // 3. Regex поиск
-            if (regexIndex.isNotEmpty()) {
-                for ((e, pattern) in regexIndex) {
-                    val matcher = pattern.matcher(query)
-                    if (matcher.find()) {
-                        val groups = mutableListOf<String>()
-                        for (i in 0..matcher.groupCount()) {
-                            groups.add(matcher.group(i) ?: "")
-                        }
-
-                        val sr = SearchResult(e, groups)
-                        if (e.requiredContext.equals(userCtx, ignoreCase = true) && e.requiredContext.isNotEmpty()) {
-                            regexContextual.add(sr)
-                        } else if (e.requiredContext.isEmpty()) {
-                            regexGeneral.add(sr)
-                        }
-                    }
-                }
-            }
-
-            // Fallback: полный скан для маленьких баз
-            if (exactContextual.isEmpty() && exactGeneral.isEmpty() && candidateSet.isEmpty() && answers.size < 2000) {
-                candidateSet.addAll(answers.values)
-            }
-        }
-
-        // 4. Фильтрация и ранжирование
-        val highConfidenceContextual = mutableListOf<SearchResult>()
-        val mediumConfidenceContextual = mutableListOf<SearchResult>()
-        val highConfidenceGeneral = mutableListOf<SearchResult>()
-        val mediumConfidenceGeneral = mutableListOf<SearchResult>()
-
-        for (element in candidateSet) {
-            if (isAlreadyInResults(element, exactContextual, exactGeneral, regexContextual, regexGeneral)) continue
-
-            val questionNorm = element.questionText.lowercase(Locale.getDefault())
-                .replace(Regex("[^a-zа-я0-9 ]"), " ").trim()
-            val questionWords = questionNorm.split("\\s+".toRegex())
-
-            val validQWords = questionWords.count { it.isNotEmpty() }
-            if (validQWords == 0) continue
-
-            var matchCount = 0
-            for (qWord in questionWords) {
-                if (qWord.isEmpty()) continue
-                for (uWord in queryWords) {
-                    if (uWord.isEmpty()) continue
-                    if (qWord == uWord || isFuzzyWordMatch(qWord, uWord)) {
-                        matchCount++
-                        break
-                    }
-                }
-            }
-
-            val matchRatio = matchCount.toFloat() / validQWords
-            val isContextMatch = element.requiredContext.equals(userCtx, ignoreCase = true) && element.requiredContext.isNotEmpty()
-            val isNoContext = element.requiredContext.isEmpty()
-
-            if (isContextMatch || isNoContext) {
-                val sr = SearchResult(element)
-                if (matchRatio >= 0.95f) {
-                    if (isContextMatch) highConfidenceContextual.add(sr)
-                    else highConfidenceGeneral.add(sr)
-                } else if (matchRatio >= 0.65f) {
-                    if (isContextMatch) mediumConfidenceContextual.add(sr)
-                    else mediumConfidenceGeneral.add(sr)
+            for (element in candidates) {
+                if (element.id in alreadyFound) continue
+                val info = questionInfo[element.id] ?: continue
+                val strong = segments.maxOf { scoreSegment(info, it, MIN_QUESTION_COVERAGE) }
+                if (strong > 0) {
+                    addByContext(SearchResult(element, score = strong.toFloat()), userCtx, smartContextual, smartGeneral)
+                } else {
+                    val weak = segments.maxOf { scoreSegment(info, it, MIN_WEAK_QUESTION_COVERAGE) }
+                    if (weak > 0) addByContext(SearchResult(element, score = weak.toFloat()), userCtx, weakContextual, weakGeneral)
                 }
             }
         }
 
-        // Ранжирование по популярности
-        val usageComparator = Comparator<SearchResult> { a, b ->
-            b.answer.usageCount.compareTo(a.answer.usageCount)
-        }
-
-        exactContextual.sortWith(usageComparator)
-        exactGeneral.sortWith(usageComparator)
-        regexContextual.sortWith(usageComparator)
-        regexGeneral.sortWith(usageComparator)
-        highConfidenceContextual.sortWith(usageComparator)
-        highConfidenceGeneral.sortWith(usageComparator)
-        mediumConfidenceContextual.sortWith(usageComparator)
-        mediumConfidenceGeneral.sortWith(usageComparator)
-
-        val finalResults = mutableListOf<SearchResult>()
-        finalResults.addAll(exactContextual)
-        finalResults.addAll(exactGeneral)
-        finalResults.addAll(regexContextual)
-        finalResults.addAll(regexGeneral)
-        finalResults.addAll(highConfidenceGeneral)
-        finalResults.addAll(highConfidenceContextual)
-        finalResults.addAll(mediumConfidenceContextual)
-        finalResults.addAll(mediumConfidenceGeneral)
-
-        return finalResults
+        val byUsage = compareByDescending<SearchResult> { it.answer.usageCount }
+        val byScore = compareByDescending<SearchResult> { it.score }.then(byUsage)
+        val tiers = listOf(
+            exactContextual.sortedWith(byUsage), exactGeneral.sortedWith(byUsage),
+            regexContextual.sortedWith(byUsage), regexGeneral.sortedWith(byUsage),
+            smartContextual.sortedWith(byScore), smartGeneral.sortedWith(byScore),
+            weakContextual.sortedWith(byScore), weakGeneral.sortedWith(byScore)
+        )
+        return tiers.flatMapIndexed { tier, list -> list.map { it.copy(tier = tier) } }
     }
 
-    private fun isAlreadyInResults(e: AnswerElement, vararg lists: List<SearchResult>): Boolean {
-        for (list in lists) {
-            for (sr in list) {
-                if (sr.answer.id == e.id) return true
-            }
+    private fun addByContext(sr: SearchResult, userCtx: String, contextual: MutableList<SearchResult>, general: MutableList<SearchResult>) {
+        val required = sr.answer.requiredContext
+        when {
+            required.isEmpty() -> general.add(sr)
+            required.equals(userCtx, ignoreCase = true) -> contextual.add(sr)
         }
-        return false
+    }
+
+    /** Всё сообщение + его части (для длинных сообщений из нескольких фраз). */
+    private fun buildSegments(query: String): List<Segment> {
+        fun stemsOf(text: String) = TextAnalyzer.tokens(text, synonyms).map { TextAnalyzer.stem(it) }.toSet()
+
+        val wholeStems = stemsOf(query)
+        val wholeWeight = wholeStems.sumOf { messageWeightOf(it) }.coerceAtLeast(1e-9)
+        val whole = Segment(wholeStems, wholeWeight, 1.0)
+
+        val clauses = TextAnalyzer.clauses(query)
+        if (clauses.size < 2) return listOf(whole)
+        // Части из одного слова («привет», «слушай») — обращения; их учитываем только в составе всего сообщения
+        return listOf(whole) + clauses.map { stemsOf(it) }.filter { it.size >= 2 }.map { stems ->
+            val weight = stems.sumOf { messageWeightOf(it) }.coerceAtLeast(1e-9)
+            Segment(stems, weight, weight / wholeWeight)
+        }
+    }
+
+    /**
+     * Оценка 0..1: насколько вопрос из базы покрыт частью сообщения (qCoverage)
+     * и какую долю смысла этой части он объясняет (mCoverage).
+     * Благодаря второму множителю «привет» не перебивает длинный рассказ о работе.
+     */
+    private fun scoreSegment(info: QuestionInfo, segment: Segment, minQuestionCoverage: Double): Double {
+        if (segment.stems.isEmpty() || info.weight <= 0.0) return 0.0
+        var matchedQuestionWeight = 0.0
+        for (qs in info.stems) {
+            val found = qs in segment.stems || segment.stems.any { isFuzzyWordMatch(qs, it) }
+            if (found) matchedQuestionWeight += weightOf(qs)
+        }
+        val qCoverage = matchedQuestionWeight / info.weight
+        if (qCoverage < minQuestionCoverage) return 0.0
+
+        // Числитель — вес совпавших слов вопроса: так учитываются и слова сообщения с опечатками
+        val mCoverage = (matchedQuestionWeight / segment.weight).coerceAtMost(1.0)
+        if (segment.stems.size > SHORT_MESSAGE_WORDS && mCoverage < MIN_MESSAGE_COVERAGE) return 0.0
+
+        var score = qCoverage * sqrt(mCoverage) * sqrt(segment.share)
+
+        // «Какой сегодня день» (вопрос) не ответ на «сегодня был ужасный день» (рассказ)
+        if (info.stems.any { it in QUESTION_WORDS } && segment.stems.none { it in QUESTION_WORDS }) {
+            score *= MISMATCH_PENALTY
+        }
+        // Приветствие не должно перебивать суть: «привет, как дела?» — ответ про дела
+        if (info.stems.filter { it !in STOP_WORDS }.all { it in GREETINGS } &&
+            segment.stems.count { it !in GREETINGS && messageWeightOf(it) > 0 } >= 2) {
+            score *= MISMATCH_PENALTY
+        }
+        return score
     }
 
     val answersCount: Int
@@ -274,8 +300,24 @@ class AnswerDatabase(context: Context?) {
         }
     }
 
+    /** Учитывает использование ответа; на диск счётчики пишет [saveUsageStats]. */
+    fun recordUsage(element: AnswerElement) {
+        element.incrementUsageCount()
+        usageDirty.set(true)
+    }
+
+    /** Сохраняет счётчики, если они менялись. Вызывать не из главного потока. */
+    fun saveUsageStats() {
+        val fm = fileManager ?: return
+        if (!usageDirty.getAndSet(false)) return
+        val snapshot = synchronized(answers) { answers.values.toList() }
+        if (!fm.saveUsageStats(snapshot)) usageDirty.set(true)
+    }
+
     fun reloadFromFile(): Boolean {
         return try {
+            // Иначе накопленные в памяти счётчики пропадут вместе со старыми элементами
+            saveUsageStats()
             loadFromFile()
             true
         } catch (e: Exception) {
@@ -286,22 +328,41 @@ class AnswerDatabase(context: Context?) {
 
     companion object {
         private const val TAG = "AnswerDatabase"
+        private const val SYNONYMS_FILE_NAME = "synonyms.txt"
 
+        /** Минимальная доля смысла вопроса из базы, найденная в сообщении. */
+        private const val MIN_QUESTION_COVERAGE = 0.7
+        /** Слабое совпадение (другой глагол: «сделать» вместо «оформить») — только если сильных нет. */
+        private const val MIN_WEAK_QUESTION_COVERAGE = 0.5
+
+        /** Служебные слова (союзы, частицы, предлоги) и усилители — вес 0. Хранятся в виде основ. */
+        private val STOP_WORDS = listOf(
+            "а", "и", "но", "или", "да", "же", "ли", "бы", "ну", "вот", "то",
+            "в", "во", "на", "с", "со", "к", "ко", "у", "о", "об", "от", "до", "по", "за", "из", "для", "про", "при",
+            "очень", "так", "просто", "вообще", "прям", "прямо", "еще", "уже", "тоже", "типа", "короче", "слушай"
+        ).map { TextAnalyzer.stem(it) }.toSet()
+
+        /** Вопросительные слова: вопрос из базы с ними не подходит к сообщению-утверждению. */
+        private val QUESTION_WORDS = listOf(
+            "как", "какой", "какая", "какое", "какие", "что", "где", "когда", "куда", "откуда",
+            "почему", "зачем", "сколько", "кто", "чей", "ли"
+        ).map { TextAnalyzer.stem(it) }.toSet()
+
+        private val GREETINGS = listOf("привет", "здравствуй", "здравствуйте", "ку", "йоу")
+            .map { TextAnalyzer.stem(it) }.toSet()
+
+        /** Во сколько раз ослабляется оценка при несовпадении типа фразы. */
+        private const val MISMATCH_PENALTY = 0.5
+        /** Минимальная доля смысла сообщения, которую объясняет вопрос (для сообщений длиннее 3 слов). */
+        private const val MIN_MESSAGE_COVERAGE = 0.1
+        private const val SHORT_MESSAGE_WORDS = 3
+
+        /** Опечатка в основе слова: первая буква совпадает, 1 ошибка (2 — для длинных слов). */
         private fun isFuzzyWordMatch(w1: String, w2: String): Boolean {
-            if (kotlin.math.abs(w1.length - w2.length) > 3) return false
-            if (w1.length <= 3 || w2.length <= 3) return w1 == w2
-
-            val minLen = min(w1.length, w2.length)
-            var commonPrefix = 0
-            for (i in 0 until minLen) {
-                if (w1[i] == w2[i]) commonPrefix++
-                else break
-            }
-
-            if (commonPrefix >= 4 && commonPrefix >= minLen - 2) return true
-
-            val dist = calculateLevenshteinDistance(w1, w2)
-            return dist <= (minLen / 4) + 1
+            if (w1.length < 5 || w2.length < 5 || w1[0] != w2[0]) return false
+            val maxDist = if (min(w1.length, w2.length) >= 8) 2 else 1
+            if (kotlin.math.abs(w1.length - w2.length) > maxDist) return false
+            return calculateLevenshteinDistance(w1, w2) <= maxDist
         }
 
         private fun calculateLevenshteinDistance(s1: String, s2: String): Int {

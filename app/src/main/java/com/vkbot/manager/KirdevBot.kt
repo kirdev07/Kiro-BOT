@@ -14,15 +14,14 @@ import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Менеджер управления ботом VK.
- * Финальная очистка: устранено 185 оставшихся предупреждений (unused, visibility, и т.д.).
+ * Ядро бота VK (Bots Long Poll API сообщества).
  */
 class KirdevBot(
     private val token: String,
     private val onLog: (String) -> Unit,
     private val onStatusUpdate: ((String) -> Unit)? = null,
     private val onWaitForNetwork: (suspend () -> Unit)? = null
-) {
+) : MessengerBot {
     
     private var isRunning = false
     private var pollingJob: Job? = null
@@ -37,25 +36,31 @@ class KirdevBot(
 
     private val userCache = ConcurrentHashMap<Int, UserInfo>()
     private var messageProcessor: ((Map<String, Any>) -> Map<String, Any>?)? = null
+    private val mediaUploader = MediaUploader(api = { method, params -> makeApiRequest(method, params) }, onLog = onLog)
     
     companion object {
         private const val TAG = "VKBotManager"
         private const val API_VERSION = "5.131"
         private const val VK_API_URL = "https://api.vk.com/method/"
+        /** Сколько бот «печатает» перед ответом */
+        private const val TYPING_MS = 2500L
+        /** Статус «печатает» в VK гаснет через ~10 с — обновляем чаще */
+        private const val VK_TYPING_REFRESH_MS = 8000L
     }
     
-    fun setMessageProcessor(processor: (Map<String, Any>) -> Map<String, Any>?) {
+    override fun setMessageProcessor(processor: (Map<String, Any>) -> Map<String, Any>?) {
         this.messageProcessor = processor
     }
     
-    fun clearUserCache() {
+    override fun clearUserCache() {
         userCache.clear()
     }
     
-    suspend fun start() {
-        if (isRunning) return
+    /** @return true, если Long Poll запущен; false — ошибка токена/API (повтор бесполезен). */
+    override suspend fun start(): Boolean {
+        if (isRunning) return true
 
-        while (!isRunning) {
+        while (true) {
             try {
                 if (initLongPoll()) {
                     isRunning = true
@@ -66,10 +71,10 @@ class KirdevBot(
                     historyJob = botScope.launch { checkUnreadMessagesAlternative(startTime) }
 
                     startPolling()
-                    break
+                    return true
                 } else {
-                    onLog("Ошибка инициализации Long Poll")
-                    break
+                    onLog("Ошибка инициализации Long Poll: проверьте токен сообщества и включите Long Poll API в настройках сообщества")
+                    return false
                 }
             } catch (e: Exception) {
                 if (NetworkHelper.isNetworkError(e)) {
@@ -79,7 +84,7 @@ class KirdevBot(
                 } else {
                     onLog("Ошибка запуска бота: ${e.message}")
                     Log.e(TAG, "Error starting bot", e)
-                    break
+                    return false
                 }
             }
         }
@@ -217,7 +222,7 @@ class KirdevBot(
         }
     }
     
-    fun stop() {
+    override fun stop() {
         isRunning = false
         pollingJob?.cancel()
         historyJob?.cancel()
@@ -300,13 +305,12 @@ class KirdevBot(
         }
     }
     
-    private suspend fun emulateTyping(peerId: Int) {
+    private suspend fun sendTyping(peerId: Int) {
         try {
             makeApiRequest("messages.setActivity", mapOf(
                 "peer_id" to peerId.toString(),
                 "type" to "typing"
             ))
-            delay(2500L)
         } catch (_: Exception) {}
     }
 
@@ -315,7 +319,8 @@ class KirdevBot(
             if (updates.has("failed")) {
                 when (updates.getInt("failed")) {
                     1 -> ts = updates.get("ts").toString()
-                    2, 3 -> initLongPoll()
+                    // Без паузы при неудаче переподключения цикл опроса крутился бы вхолостую
+                    2, 3 -> if (!initLongPoll()) delay(5000)
                 }
                 return
             }
@@ -337,6 +342,8 @@ class KirdevBot(
         try {
             var text = message.optString("text", "")
             val fromId = message.getInt("from_id")
+            // Отрицательный from_id — сообщество/другой бот: не отвечаем, чтобы не зациклиться
+            if (fromId <= 0) return true
             val peerId = message.getInt("peer_id")
             val isChat = peerId > 2000000000
             val attachmentTypes = parseAttachmentTypes(message.optJSONArray("attachments"))
@@ -353,11 +360,11 @@ class KirdevBot(
                 if (text.isEmpty() && attachmentTypes.isEmpty()) return true 
             }
             
-            if (BlacklistManager.isBlacklisted(fromId)) return true
+            if (BlacklistManager.isBlacklisted(fromId.toLong())) return true
             
             if (SettingsManager.isAntiSpamEnabled && isSpam(fromId)) {
                 if (SettingsManager.isAutoBanEnabled) {
-                    BlacklistManager.add(fromId, getUserInfo(fromId).fullName)
+                    BlacklistManager.add(fromId.toLong(), getUserInfo(fromId).fullName)
                 }
                 return true
             }
@@ -365,20 +372,30 @@ class KirdevBot(
             val userInfo = getUserInfo(fromId)
             val messageMap = mapOf(
                 "text" to text,
+                "raw_text" to text,
                 "from_id" to fromId,
                 "peer_id" to peerId,
                 "first_name" to userInfo.firstName,
                 "attachment_types" to attachmentTypes
             )
             
-            val processorResult = messageProcessor?.invoke(messageMap)
+            // «Печатает…» — сразу и пока ищется ответ (ИИ может думать несколько секунд)
+            val started = System.currentTimeMillis()
+            // Первый статус — сразу (иначе при быстром ответе корутина отменится раньше, чем его отправит)
+            sendTyping(peerId)
+            val typingJob = botScope.launch {
+                while (isActive) { delay(VK_TYPING_REFRESH_MS); sendTyping(peerId) }
+            }
+            val processorResult = try { messageProcessor?.invoke(messageMap) } finally { typingJob.cancel() }
             if (processorResult != null) {
                 val response = processorResult["text"] as? String
                 @Suppress("UNCHECKED_CAST")
                 val attachments = (processorResult["attachments"] as? List<Attachment>) ?: emptyList()
                 
                 if (response != null) {
-                    if (SettingsManager.isTypingEnabled) emulateTyping(peerId)
+                    // Имитация набора: дополняем до TYPING_MS, если ответ нашёлся быстрее
+                    val remaining = TYPING_MS - (System.currentTimeMillis() - started)
+                    if (remaining > 0) delay(remaining)
                     val replyToMsgId = if (isChat) message.optInt("conversation_message_id", 0) else message.optInt("id", 0)
                     return sendMessageWithAttachments(peerId, response, attachments, userInfo.fullName, replyToMsgId, isChat)
                 }
@@ -401,9 +418,13 @@ class KirdevBot(
         try {
             if (text.trim().isEmpty() && attachments.isEmpty()) return@withContext false
 
+            // Картинки по ссылкам загружаются в VK, прочие ссылки идут в текст (VK покажет превью)
+            val media = mediaUploader.resolve(attachments, peerId)
+            val fullText = (listOf(text.trim()) + media.links).filter { it.isNotEmpty() }.joinToString("\n")
+
             val params = mutableMapOf(
                 "peer_id" to peerId.toString(),
-                "message" to text,
+                "message" to fullText,
                 "random_id" to (0..Int.MAX_VALUE).random().toString()
             )
             
@@ -412,16 +433,20 @@ class KirdevBot(
                 params["forward"] = "{\"peer_id\":$peerId,\"$type\":[$replyToMsgId],\"is_reply\":1}"
             }
             
-            if (attachments.isNotEmpty()) {
-                params["attachment"] = attachments.joinToString(",") { it.toVkString() }
+            if (media.vkAttachments.isNotEmpty()) {
+                params["attachment"] = media.vkAttachments.joinToString(",")
             }
             
             val response = makeApiRequest("messages.send", params)
-            if (JSONObject(response).has("error")) return@withContext false
-            
+            JSONObject(response).optJSONObject("error")?.let { error ->
+                onLog("Ошибка отправки $userName: ${error.optString("error_msg")} (код ${error.optInt("error_code")})")
+                return@withContext false
+            }
+
             onLog("Ответ отправлен $userName")
             return@withContext true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            onLog("Ошибка отправки $userName: ${e.message}")
             false
         }
     }

@@ -9,7 +9,7 @@ import java.util.Locale
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 /**
- * Оптимизированный "мозг" бота (переведен на Kotlin).
+ * «Мозг» бота: выбор ответа из базы с учётом истории диалога и контекста.
  */
 class BotBrain(val answerDatabase: AnswerDatabase?) {
 
@@ -30,9 +30,20 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
 
     private var fallbackResponses: List<String> = emptyList()
 
+    /** Журнал «Не знаю ответа»: вопросы, на которые не нашлось ответа в базе. */
+    val unanswered: UnansweredLog = answerDatabase?.fileManager?.loadUnanswered() ?: UnansweredLog()
+
+    /** Вести ли журнал (переключатель в настройках; сервис подставляет SettingsManager). */
+    var isUnansweredLogEnabled: () -> Boolean = { true }
+
+    /** ИИ-помощник: вызывается, когда в базе нет ответа; null — ИИ не ответил (дальше запасной ответ). */
+    var aiResponder: ((BotMessage) -> String?)? = null
+
     init {
-        log("BotBrain v2.1.8 (Kotlin) инициализирован")
+        log("BotBrain инициализирован")
         loadFallbacks()
+        // Пока бот был выключен, базу могли пополнить в редакторе
+        answerDatabase?.let { db -> unanswered.prune { db.searchAnswers(it, "").isNotEmpty() } }
     }
 
     private fun loadFallbacks() {
@@ -50,22 +61,27 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
     }
 
     fun processMessage(message: BotMessage?): BotResponse? {
-        rwLock.readLock().lock()
+        if (message == null || message.text.isBlank()) return null
         try {
-            if (message == null || message.text.isBlank()) return null
-
-            val sr = findAnswerSmart(message)
+            val sr = rwLock.read { findAnswerSmart(message) }
             if (sr != null) return prepareResponse(sr, message)
 
-            val fallback = getFallbackResponse() ?: return null
+            // В базе ответа нет: спрашиваем ИИ (без блокировки — запрос может идти до минуты)
+            val aiAnswer = aiResponder?.invoke(message)
+            if (isUnansweredLogEnabled()) unanswered.record(message.text, suggestion = aiAnswer.orEmpty())
+            if (aiAnswer != null) return BotResponse(aiAnswer)
 
+            val fallback = getFallbackResponse() ?: return null
             return prepareResponse(SearchResult(AnswerElement(id = -1, answerText = fallback.text, answerAttachments = fallback.attachments)), message)
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка процесса", e)
             return null
-        } finally {
-            rwLock.readLock().unlock()
         }
+    }
+
+    private inline fun <T> ReentrantReadWriteLock.read(block: () -> T): T {
+        readLock().lock()
+        try { return block() } finally { readLock().unlock() }
     }
 
     private fun findAnswerSmart(message: BotMessage): SearchResult? {
@@ -103,11 +119,10 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
 
         if (freshCandidates.isEmpty()) return null
 
-        val limitCount = minOf(3, freshCandidates.size)
-        val chosen = freshCandidates[(0 until limitCount).random()]
+        val chosen = selectionPool(freshCandidates).random()
         val chosenElement = chosen.answer
 
-        chosenElement.incrementUsageCount()
+        answerDatabase.recordUsage(chosenElement)
         history.addResponse(chosenElement.id, message.text, chosenElement.answerText)
         history.setContext(chosenElement.resultContext)
 
@@ -140,7 +155,9 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
 
         val list = fallbackResponses
         if (list.isEmpty()) {
-            return BotResponse("Извините, я не знаю, что ответить. Файл fallback.txt пуст или не найден.", emptyList())
+            // Техническую причину — в лог, собеседнику — нейтральная фраза
+            log("fallback.txt пуст или не найден — отвечаю стандартной фразой")
+            return BotResponse("Извините, я не знаю, что ответить.", emptyList())
         }
         val text = list.random()
         return BotResponse(text, emptyList())
@@ -183,6 +200,12 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
         return result
     }
 
+    /** Сохраняет на диск счётчики использования и журнал «Не знаю ответа», если они менялись. */
+    fun saveStats() {
+        answerDatabase?.saveUsageStats()
+        if (unanswered.isDirty) answerDatabase?.fileManager?.saveUnanswered(unanswered)
+    }
+
     fun reloadDatabase() {
         rwLock.writeLock().lock()
         try {
@@ -190,11 +213,43 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
             if (answerDatabase != null) {
                 success = answerDatabase.reloadFromFile()
                 loadFallbacks()
+                // Вопросы, на которые теперь есть ответ, из журнала убираем
+                val pruned = unanswered.prune { answerDatabase.searchAnswers(it, "").isNotEmpty() }
+                if (pruned > 0) log("Из журнала «Не знаю ответа» убрано: $pruned")
             }
             log("База данных перезагружена: " + if (success) "УСПЕХ" else "ОШИБКА")
         } finally {
             rwLock.writeLock().unlock()
         }
+        saveStats()
+    }
+
+    /** Добавляет ответ в базу (команда владельца «!запомни»). */
+    fun teach(question: String, answer: String): Boolean {
+        val fm = answerDatabase?.fileManager ?: return false
+        val saved = fm.saveAnswerDatabaseWithBackup(AndroidFileManager.withAnswer(fm.loadAnswerDatabase(), question, answer))
+        if (saved) reloadDatabase()
+        return saved
+    }
+
+    /** Удаляет все ответы на вопрос (команда владельца «!забудь»). @return сколько удалено, -1 — ошибка записи */
+    fun forget(question: String): Int {
+        val fm = answerDatabase?.fileManager ?: return -1
+        val (kept, removed) = AndroidFileManager.withoutQuestion(fm.loadAnswerDatabase(), question)
+        if (removed == 0) return 0
+        if (!fm.saveAnswerDatabaseWithBackup(kept)) return -1
+        reloadDatabase()
+        return removed
+    }
+
+    /** Убирает запись из журнала (кнопка «Удалить из списка» в редакторе). */
+    fun forgetUnanswered(text: String) {
+        if (unanswered.remove(text)) saveStats()
+    }
+
+    fun clearUnanswered() {
+        unanswered.clear()
+        saveStats()
     }
 
     private class UserResponseHistory {
@@ -253,5 +308,22 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
     companion object {
         private const val TAG = "BotBrain"
         private const val MAX_USERS_HISTORY = 1000
+        /** Ответы с оценкой не ниже 90% от лучшей считаются равноценными. */
+        internal const val NEAR_TIE = 0.9f
+        /** Уровни 0–3 — точное совпадение и regex: все варианты равноправны (команда с 10 картинками). */
+        private const val LAST_EXACT_TIER = 3
+
+        /**
+         * Из чего бот случайно выбирает ответ: лучший уровень совпадения и почти равные по оценке.
+         * Для точных совпадений — все варианты, для совпадений по смыслу — не больше трёх лучших.
+         */
+        internal fun selectionPool(candidates: List<SearchResult>): List<SearchResult> {
+            if (candidates.isEmpty()) return emptyList()
+            val bestTier = candidates.minOf { it.tier }
+            val best = candidates.filter { it.tier == bestTier }
+            val topScore = best.maxOf { it.score }
+            val pool = best.filter { it.score >= topScore * NEAR_TIE }
+            return if (bestTier <= LAST_EXACT_TIER) pool else pool.take(3)
+        }
     }
 }

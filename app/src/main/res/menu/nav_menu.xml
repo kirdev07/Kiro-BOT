@@ -26,8 +26,12 @@
                     android:id="@+id/nav_editor" 
                     android:title="Редактор ответов"
                     android:icon="@drawable/ic_command" />
-                <item 
-                    android:id="@+id/nav_blacklist" 
+                <item
+                    android:id="@+id/nav_ai"
+                    android:title="@string/ai_title"
+                    android:icon="@drawable/ic_api" />
+                <item
+                    android:id="@+id/nav_blacklist"
                     android:title="ЧС / Анти-флуд"
                     android:icon="@drawable/ic_block" />
                 <item 

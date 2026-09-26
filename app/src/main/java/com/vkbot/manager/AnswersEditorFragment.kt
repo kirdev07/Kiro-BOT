@@ -17,6 +17,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.core.content.ContextCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.vkbot.manager.databinding.FragmentAnswersEditorBinding
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -28,10 +29,10 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import androidx.core.view.isVisible
 import androidx.core.graphics.toColorInt
-import java.io.File
 import com.vkbot.manager.botbrain.AndroidFileManager
 import com.vkbot.manager.botbrain.AnswerElement
 import com.vkbot.manager.botbrain.Attachment
+import com.vkbot.manager.botbrain.UnansweredLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -184,6 +185,11 @@ class AnswersEditorFragment : Fragment() {
         binding.btnImport.setOnClickListener {
             importDatabase()
         }
+
+        // Журнал «Не знаю ответа»
+        binding.btnUnanswered.setOnClickListener {
+            showUnansweredDialog()
+        }
         
         // Массовые операции
         binding.btnSelectAll.setOnClickListener {
@@ -219,46 +225,12 @@ class AnswersEditorFragment : Fragment() {
     }
     
     private fun loadAnswers() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             binding.progressBar.isVisible = true
             
             Log.i("AnswersEditor", "=== ЗАГРУЗКА ОТВЕТОВ (Kiro Bot) ===")
             
-            val answers = withContext(Dispatchers.IO) {
-                // ЛОГИКА АВТО-ВОССТАНОВЛЕНИЯ
-                // Используем путь из fileManager, чтобы не дублировать логику
-                val mainFile = File(fileManager.answerFilePath)
-                val backupFile = File(mainFile.parentFile, "answer.bak")
-
-                // Также нужно будет создать эту папку, если её нет
-                if (mainFile.parentFile?.exists() == false) {
-                    mainFile.parentFile?.mkdirs()
-                }
-                
-                var result: List<AnswerElement> = emptyList()
-                
-                try {
-                    // 1. Пробуем загрузить основной файл
-                    result = fileManager.loadAnswerDatabase()
-                } catch (e: Exception) {
-                    Log.e("AnswersEditor", "❌ Ошибка чтения основного файла: ${e.message}")
-                    
-                    // 2. Если ошибка, пробуем восстановить из бэкапа
-                    if (backupFile.exists()) {
-                        Log.w("AnswersEditor", "⚠️ Основной файл поврежден. Восстановление из бэкапа...")
-                        try {
-                            backupFile.copyTo(mainFile, overwrite = true)
-                            result = fileManager.loadAnswerDatabase()
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(requireContext(), R.string.database_restored_from_backup, Toast.LENGTH_LONG).show()
-                            }
-                        } catch (_: Exception) {
-                            Log.e("AnswersEditor", "❌ Бэкап тоже поврежден или недоступен")
-                        }
-                    }
-                }
-                result
-            }
+            val answers = withContext(Dispatchers.IO) { fileManager.loadAnswerDatabase() }
             
             Log.i("AnswersEditor", "Загружено из файла: ${answers.size} ответов")
             
@@ -289,7 +261,7 @@ class AnswersEditorFragment : Fragment() {
         // если вдруг список изменится во время поиска
         val snapshot = ArrayList(allAnswers)
         
-        searchJob = lifecycleScope.launch(Dispatchers.Default) {
+        searchJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Default) {
             val filtered = if (query.isEmpty()) {
                 snapshot
             } else {
@@ -355,7 +327,8 @@ class AnswersEditorFragment : Fragment() {
         updateSelectionPanel()
     }
     
-    private fun showAddDialog() {
+    /** @param prefillQuestion вопрос из журнала «Не знаю ответа», [prefillAnswer] — подсказка ИИ; [onAdded] — после сохранения */
+    private fun showAddDialog(prefillQuestion: String? = null, prefillAnswer: String? = null, onAdded: (() -> Unit)? = null) {
         try {
             val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_edit_answer, null)
             val etQuestion = dialogView.findViewById<EditText>(R.id.et_question)
@@ -368,6 +341,8 @@ class AnswersEditorFragment : Fragment() {
             
             tvTitle.text = getString(R.string.add_answer_title)
             etRepetitionLimit.setText("3")
+            prefillQuestion?.let { etQuestion.setText(it) }
+            prefillAnswer?.takeIf { it.isNotBlank() }?.let { etAnswer.setText(it) }
             
             val dialog = AlertDialog.Builder(requireContext())
                 .setView(dialogView)
@@ -393,8 +368,7 @@ class AnswersEditorFragment : Fragment() {
             
             btnSave.setOnClickListener {
                 val question = etQuestion.text.toString().trim()
-                // Поддержка символа \ как переноса строки для удобства ввода
-                val answer = etAnswer.text.toString().trim().replace("\\", "\n")
+                val answer = etAnswer.text.toString().trim()
                 val attachmentsStr = etAttachments.text.toString().trim()
                 val limitStr = etRepetitionLimit.text.toString().trim()
                 val repetitionLimit = limitStr.toIntOrNull() ?: 0
@@ -413,7 +387,7 @@ class AnswersEditorFragment : Fragment() {
                     return@setOnClickListener
                 }
                 
-                addAnswer(question, answer, attachments, repetitionLimit)
+                addAnswer(question, answer, attachments, repetitionLimit, onSaved = onAdded)
                 dialog.dismiss()
             }
             
@@ -443,9 +417,7 @@ class AnswersEditorFragment : Fragment() {
             etAnswer.setText(answerElement.answerText)
             
             // Заполняем вложения - показываем полные VK ссылки
-            val attachmentsStr = answerElement.answerAttachments.joinToString("\n") { 
-                "https://vk.com/${it.toVkString()}"
-            }
+            val attachmentsStr = answerElement.answerAttachments.joinToString("\n") { it.toDisplayString() }
             etAttachments.setText(attachmentsStr)
             
             if (answerElement.repetitionLimit > 0) {
@@ -487,8 +459,7 @@ class AnswersEditorFragment : Fragment() {
             
             btnSave.setOnClickListener {
                 val question = etQuestion.text.toString().trim()
-                // Поддержка символа \ как переноса строки для удобства ввода
-                val answer = etAnswer.text.toString().trim().replace("\\", "\n")
+                val answer = etAnswer.text.toString().trim()
                 val inputAttachmentsStr = etAttachments.text.toString().trim()
                 val limitStr = etRepetitionLimit.text.toString().trim()
                 val repetitionLimit = limitStr.toIntOrNull() ?: 0
@@ -534,7 +505,7 @@ class AnswersEditorFragment : Fragment() {
             
             if (attachment != null) {
                 attachments.add(attachment)
-                Log.i("AnswersEditor", "✅ Распознано: ${attachment.toVkString()}")
+                Log.i("AnswersEditor", "✅ Распознано: ${attachment.toStorageString()}")
             } else {
                 Log.w("AnswersEditor", "❌ Не удалось распознать: $part")
             }
@@ -573,7 +544,7 @@ class AnswersEditorFragment : Fragment() {
         dialog.show()
     }
     
-    private fun addAnswer(question: String, answer: String, attachments: List<Attachment>, repetitionLimit: Int = 0, requiredContext: String = "", resultContext: String = "") {
+    private fun addAnswer(question: String, answer: String, attachments: List<Attachment>, repetitionLimit: Int = 0, requiredContext: String = "", resultContext: String = "", onSaved: (() -> Unit)? = null) {
         val usageCount = 0 // Используем константу, так как при добавлении всегда 0
         lifecycleScope.launch {
             val newId = (allAnswers.maxOfOrNull { it.id } ?: 0) + 1
@@ -584,7 +555,7 @@ class AnswersEditorFragment : Fragment() {
             Log.i("AnswersEditor", "Ответ: $answer")
             Log.i("AnswersEditor", "Вложений: ${attachments.size}")
             attachments.forEach { 
-                Log.i("AnswersEditor", "  - ${it.toVkString()}")
+                Log.i("AnswersEditor", "  - ${it.toStorageString()}")
             }
             
             allAnswers.add(newAnswer)
@@ -592,17 +563,15 @@ class AnswersEditorFragment : Fragment() {
             // Создаем копию списка для сохранения, чтобы избежать ConcurrentModificationException
             val listToSave = ArrayList(allAnswers)
             
-            val saved = withContext(Dispatchers.IO) {
-                fileManager.saveAnswerDatabase(listToSave)
-            }
+            val saved = saveWithBackup(listToSave)
             
             if (!isAdded) return@launch
             
             if (saved) {
                 // ИСПРАВЛЕНИЕ: Обновляем список с учетом поиска
-                createAutoBackup() // Создаем резервную копию
                 refreshList()
                 Toast.makeText(requireContext(), R.string.answer_added_success, Toast.LENGTH_SHORT).show()
+                onSaved?.invoke()
                 reloadBotDatabase()
             } else {
                 Toast.makeText(requireContext(), R.string.save_error, Toast.LENGTH_SHORT).show()
@@ -620,7 +589,7 @@ class AnswersEditorFragment : Fragment() {
             Log.i("AnswersEditor", "Статистика использований: $usageCount")
             Log.i("AnswersEditor", "Вложений: ${attachments.size}")
             attachments.forEach { 
-                Log.i("AnswersEditor", "  - ${it.toVkString()}")
+                Log.i("AnswersEditor", "  - ${it.toStorageString()}")
             }
             
             Log.i("AnswersEditor", "Размер allAnswers ДО обновления: ${allAnswers.size}")
@@ -639,17 +608,14 @@ class AnswersEditorFragment : Fragment() {
                 // Создаем копию списка для сохранения, чтобы избежать ConcurrentModificationException
                 val listToSave = ArrayList(allAnswers)
                 
-                val saved = withContext(Dispatchers.IO) {
-                    fileManager.saveAnswerDatabase(listToSave)
-                }
+                val saved = saveWithBackup(listToSave)
                 
                 if (!isAdded) return@launch
                 
                 if (saved) {
                     Log.i("AnswersEditor", "✅ Сохранение успешно")
                     
-                    createAutoBackup() // Создаем резервную копию
-                    
+                        
                     refreshList()
                     Toast.makeText(requireContext(), R.string.answer_updated_success, Toast.LENGTH_SHORT).show()
                     reloadBotDatabase()
@@ -667,14 +633,11 @@ class AnswersEditorFragment : Fragment() {
             // Создаем копию списка для сохранения, чтобы избежать ConcurrentModificationException
             val listToSave = ArrayList(allAnswers)
             
-            val saved = withContext(Dispatchers.IO) {
-                fileManager.saveAnswerDatabase(listToSave)
-            }
+            val saved = saveWithBackup(listToSave)
             
             if (!isAdded) return@launch
             
             if (saved) {
-                createAutoBackup() // Создаем резервную копию
                 refreshList()
                 Toast.makeText(requireContext(), R.string.answer_deleted_success, Toast.LENGTH_SHORT).show()
                 reloadBotDatabase()
@@ -729,14 +692,11 @@ class AnswersEditorFragment : Fragment() {
             // Создаем копию списка для сохранения, чтобы избежать ConcurrentModificationException
             val listToSave = ArrayList(allAnswers)
             
-            val saved = withContext(Dispatchers.IO) {
-                fileManager.saveAnswerDatabase(listToSave)
-            }
+            val saved = saveWithBackup(listToSave)
             
             if (!isAdded) return@launch
             
             if (saved) {
-                createAutoBackup() // Создаем резервную копию
                 refreshList()
                 Toast.makeText(requireContext(), getString(R.string.deleted_answers_count_format, selectedItems.size), Toast.LENGTH_SHORT).show()
                 exitSelectionMode()
@@ -747,24 +707,66 @@ class AnswersEditorFragment : Fragment() {
         }
     }
     
-    // Метод автоматического создания резервной копии
-    private suspend fun createAutoBackup() {
-        withContext(Dispatchers.IO) {
-            try {
-                val mainFile = File(fileManager.answerFilePath)
-                val backupFile = File(mainFile.parentFile, "answer.bak")
-                
-                if (mainFile.exists()) {
-                    mainFile.copyTo(backupFile, overwrite = true)
-                    Log.i("AnswersEditor", "✅ Auto-Backup создан: answer.bak")
+    private suspend fun saveWithBackup(list: List<AnswerElement>): Boolean =
+        withContext(Dispatchers.IO) { fileManager.saveAnswerDatabaseWithBackup(list) }
+
+    /** Журнал «Не знаю ответа»: чаще всего задаваемые вопросы без ответа в базе. */
+    private fun showUnansweredDialog() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val entries = withContext(Dispatchers.IO) { fileManager.loadUnanswered().top() }
+            val builder = MaterialAlertDialogBuilder(requireContext())
+                .setTitle(getString(R.string.unanswered_title, entries.size))
+            if (entries.isEmpty()) {
+                builder.setMessage(R.string.unanswered_empty).setPositiveButton(R.string.understood, null)
+            } else {
+                // 🤖 — на вопрос уже есть подсказка от ИИ
+                val items = entries.map {
+                    getString(R.string.unanswered_item_format, it.text, it.count) + if (it.suggestion.isNotEmpty()) "  🤖" else ""
+                }.toTypedArray()
+                builder.setItems(items) { _, which -> showUnansweredActions(entries[which]) }
+                    .setNeutralButton(R.string.unanswered_clear_all) { _, _ -> removeUnanswered(null) }
+                    .setNegativeButton(R.string.cancel, null)
+            }
+            builder.show()
+        }
+    }
+
+    private fun showUnansweredActions(entry: UnansweredLog.Entry) {
+        val builder = MaterialAlertDialogBuilder(requireContext()).setTitle(entry.text)
+        if (entry.suggestion.isNotEmpty()) builder.setMessage(getString(R.string.unanswered_ai_suggestion_format, entry.suggestion))
+        // В сообщении и списке сразу нельзя — кнопки вместо пунктов
+        builder.setPositiveButton(R.string.unanswered_add_answer) { _, _ ->
+            showAddDialog(prefillQuestion = entry.text, prefillAnswer = entry.suggestion, onAdded = { removeUnanswered(entry.text) })
+        }
+            .setNeutralButton(R.string.unanswered_remove) { _, _ -> removeUnanswered(entry.text) }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** Убирает вопрос из журнала ([text] = null — очистить весь журнал): в файле и у работающего бота. */
+    private fun removeUnanswered(text: String?) {
+        val appContext = requireContext().applicationContext
+        lifecycleScope.launch(Dispatchers.IO) {
+            val log = fileManager.loadUnanswered()
+            if (text == null) log.clear() else log.remove(text)
+            fileManager.saveUnanswered(log)
+            // Работающий бот держит журнал в памяти — иначе он вернул бы запись при следующем сохранении
+            if (sharedPrefs.getBoolean("bot_running", false)) {
+                try {
+                    appContext.startService(Intent(appContext, BotService::class.java).apply {
+                        action = BotService.ACTION_UNANSWERED_REMOVE
+                        text?.let { putExtra(BotService.EXTRA_TEXT, it) }
+                    })
+                } catch (e: Exception) {
+                    Log.e("AnswersEditor", "Не удалось уведомить сервис: ${e.message}")
                 }
-                Unit
-            } catch (e: Exception) {
-                Log.e("AnswersEditor", "❌ Ошибка создания бэкапа: ${e.message}")
+            }
+            if (text == null) withContext(Dispatchers.Main) {
+                Toast.makeText(appContext, R.string.unanswered_cleared, Toast.LENGTH_SHORT).show()
             }
         }
     }
-    
+
     private fun reloadBotDatabase() {
         Log.i("AnswersEditor", "📝 ========================================")
         Log.i("AnswersEditor", "📝 БАЗА ДАННЫХ ОТРЕДАКТИРОВАНА")
@@ -789,7 +791,7 @@ class AnswersEditorFragment : Fragment() {
     }
     
     private fun exportDatabase() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             binding.progressBar.isVisible = true
             
             val exportPath = withContext(Dispatchers.IO) {

@@ -12,22 +12,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    
-    <!-- Разрешения для медиа (Android 13+) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    
-    <!-- Разрешения для уведомлений -->
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    
-    <!-- API 28-29: READ/WRITE для /storage/emulated/0/KirDev_BOT/ -->
-    <!-- API 30+: MANAGE для доступа ко всем файлам; fallback — getExternalFilesDir -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
-        android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
-        android:maxSdkVersion="29" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" 
+
+    <!-- Доступ ко всем файлам: база в /storage/emulated/0/kirdev_base; fallback — getExternalFilesDir -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
 
     <application
@@ -42,8 +29,7 @@
         android:theme="@style/Theme.VKBotManager"
         android:largeHeap="true"
         android:hardwareAccelerated="true"
-        android:requestLegacyExternalStorage="true"
-        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="31">
         
         <activity

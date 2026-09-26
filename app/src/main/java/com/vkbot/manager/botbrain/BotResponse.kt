@@ -4,7 +4,6 @@ import java.io.Serializable
 
 /**
  * Модель ответа бота.
- * Переведена на Kotlin.
  */
 data class BotResponse(
     val text: String = "",

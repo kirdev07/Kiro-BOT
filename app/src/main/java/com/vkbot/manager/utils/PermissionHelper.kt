@@ -1,14 +1,10 @@
 package com.vkbot.manager.utils
 
-import android.Manifest
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Environment
 import android.provider.Settings
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 
 /**
@@ -17,17 +13,13 @@ import androidx.core.net.toUri
  */
 object PermissionHelper {
     
-    const val REQUEST_CODE_STORAGE = 1001
     const val REQUEST_CODE_MANAGE_STORAGE = 1002
-    
+
     /**
      * Проверяет наличие разрешений на доступ к хранилищу.
-     * На Android 11+ используется MANAGE_EXTERNAL_STORAGE.
+     * На Android 11+ используется MANAGE_EXTERNAL_STORAGE (minSdk 30 — проверка версии не нужна).
      */
-    fun hasStoragePermissions(context: Context): Boolean {
-        // Так как minSdk 30, проверка версии не требуется
-        return Environment.isExternalStorageManager()
-    }
+    fun hasStoragePermissions(): Boolean = Environment.isExternalStorageManager()
     
     /**
      * Запрашивает разрешения на доступ к хранилищу.
@@ -47,7 +39,7 @@ object PermissionHelper {
             } catch (e2: Exception) {
                 Toast.makeText(
                     activity,
-                    "Откройте Настройки → Приложения → VK Bot Manager → Разрешения",
+                    "Откройте Настройки → Приложения → Kiro Bot → Разрешения",
                     Toast.LENGTH_LONG
                 ).show()
             }

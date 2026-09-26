@@ -30,7 +30,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Kiro Bot VK"
+                android:text="@string/app_name"
                 android:textSize="28sp"
                 android:textColor="@color/white"
                 android:fontFamily="sans-serif-black" />
@@ -38,7 +38,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Активность аккаунтов"
+                android:text="@string/home_subtitle"
                 android:textSize="14sp"
                 android:textColor="@color/text_medium"
                 android:fontFamily="sans-serif-medium"
@@ -152,7 +152,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Бот общается круглосуточно, поддерживает актив и создает атмосферу живого общения в ваших диалогах и сообществах."
+                        android:text="@string/home_why_text"
                         android:textColor="@color/violet_accent"
                         android:textSize="13sp"
                         android:lineSpacingExtra="2dp"/>
@@ -190,7 +190,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="• Мощная смарт-база ответов.\n• Обработка медиафайлов.\n• Стабильная работа на VK API v5.131.\n• Фоновый режим 24/7."
+                        android:text="@string/home_features_text"
                         android:textColor="@color/violet_accent"
                         android:textSize="13sp"
                         android:lineSpacingExtra="2dp"/>

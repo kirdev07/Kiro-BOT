@@ -6,7 +6,7 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.isVisible
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import com.vkbot.manager.databinding.FragmentSettingsBinding
 import com.vkbot.manager.utils.SettingsManager
@@ -40,7 +40,7 @@ class SettingsFragment : Fragment() {
             // Загрузка уровня анти-спама
             when {
                 !SettingsManager.isAntiSpamEnabled -> toggleAntispamLevel.check(R.id.btn_antispam_off)
-                SettingsManager.spamLimit >= 5 -> toggleAntispamLevel.check(R.id.btn_antispam_normal)
+                SettingsManager.spamLimit >= SettingsManager.SPAM_LIMIT_NORMAL -> toggleAntispamLevel.check(R.id.btn_antispam_normal)
                 else -> toggleAntispamLevel.check(R.id.btn_antispam_strict)
             }
             
@@ -56,24 +56,29 @@ class SettingsFragment : Fragment() {
             switchMarkRead.isChecked = SettingsManager.isMarkAsReadEnabled
             switchChats.isChecked = SettingsManager.isChatsEnabled
             etChatPrefix.setText(SettingsManager.chatPrefix)
-            
+            etOwnerIds.setText(SettingsManager.ownerIds)
+            switchUnansweredLog.isChecked = SettingsManager.isUnansweredLogEnabled
+
             updateSubSettings()
         }
     }
 
     private fun setupListeners() {
         with(binding) {
+            etOwnerIds.doAfterTextChanged { SettingsManager.ownerIds = it?.toString().orEmpty().trim() }
+            switchUnansweredLog.setOnCheckedChangeListener { _, isChecked -> SettingsManager.isUnansweredLogEnabled = isChecked }
+
             toggleAntispamLevel.addOnButtonCheckedListener { _, checkedId, isChecked ->
                 if (isChecked) {
                     when (checkedId) {
                         R.id.btn_antispam_off -> SettingsManager.isAntiSpamEnabled = false
                         R.id.btn_antispam_normal -> {
                             SettingsManager.isAntiSpamEnabled = true
-                            SettingsManager.spamLimit = 5
+                            SettingsManager.spamLimit = SettingsManager.SPAM_LIMIT_NORMAL
                         }
                         R.id.btn_antispam_strict -> {
                             SettingsManager.isAntiSpamEnabled = true
-                            SettingsManager.spamLimit = 1
+                            SettingsManager.spamLimit = SettingsManager.SPAM_LIMIT_STRICT
                         }
                     }
                     updateSubSettings()

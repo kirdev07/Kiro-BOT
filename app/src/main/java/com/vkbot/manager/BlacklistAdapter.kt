@@ -9,11 +9,11 @@ import com.vkbot.manager.utils.BlockedUser
 
 class BlacklistAdapter(
     private var users: List<BlockedUser>,
-    private val onRemoveClick: (Int) -> Unit
+    private val onRemoveClick: (Long) -> Unit
 ) : RecyclerView.Adapter<BlacklistAdapter.ViewHolder>() {
 
     class ViewHolder(private val binding: ItemBlacklistUserBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(user: BlockedUser, onRemoveClick: (Int) -> Unit) {
+        fun bind(user: BlockedUser, onRemoveClick: (Long) -> Unit) {
             val context = itemView.context
             
             // Устранение конкатенации: используем ресурсную строку с плейсхолдерами

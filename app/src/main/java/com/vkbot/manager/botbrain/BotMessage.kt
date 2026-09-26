@@ -10,14 +10,10 @@ data class BotMessage(
     val authorId: String = "",
     val authorName: String = "",
     val platform: String = "vk",
-    val attachments: List<Attachment> = emptyList()
+    /** Беседа / группа, а не личные сообщения. */
+    val isGroupChat: Boolean = false
 ) : Serializable {
 
-    fun hasAttachments(): Boolean = attachments.isNotEmpty()
-
-    override fun toString(): String {
-        return "[$platform] Msg $authorName: $text" +
-               if (hasAttachments()) " (+ ${attachments.size} att)" else ""
-    }
+    override fun toString(): String = "[$platform] Msg $authorName: $text"
 
 }

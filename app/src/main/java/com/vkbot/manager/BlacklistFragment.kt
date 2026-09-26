@@ -14,15 +14,17 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.vkbot.manager.databinding.FragmentBlacklistBinding
 import com.vkbot.manager.utils.BlacklistManager
 import com.vkbot.manager.utils.BotDataManager
+import com.vkbot.manager.utils.BotPlatform
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
+import java.net.URLEncoder
 
 /**
  * Фрагмент управления черным списком пользователей.
- * Рефакторинг v2.1.0: View Binding, KTX, оптимизация сетевых запросов.
+ * Поиск пользователя по ссылке — через API VK; для Telegram — по числовому ID.
  */
 class BlacklistFragment : Fragment() {
 
@@ -86,18 +88,21 @@ class BlacklistFragment : Fragment() {
     }
 
     private fun fetchUserAndAdd(screenName: String) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            var finalId = -1
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            var finalId = -1L
             var finalName = getString(R.string.unknown_vk_id)
             var success = false
             var errorMessage = getString(R.string.user_not_found_error)
             
             try {
-                // Ищем любой доступный токен
-                val token = BotDataManager.loadBots(requireContext()).firstOrNull { it.token.isNotEmpty() }?.token
+                // Поиск по ссылке/нику возможен только через API VK; для Telegram — числовой ID
+                val token = BotDataManager.loadBots(appContext)
+                    .firstOrNull { it.platform == BotPlatform.VK && it.token.isNotEmpty() }?.token
                 
                 if (token != null) {
-                    val url = "https://api.vk.com/method/users.get?user_ids=$screenName&v=5.131&access_token=$token"
+                    val encodedName = URLEncoder.encode(screenName, "UTF-8")
+                    val url = "https://api.vk.com/method/users.get?user_ids=$encodedName&v=5.131&access_token=$token"
                     val response = URL(url).readText()
                     val json = JSONObject(response)
                     
@@ -105,7 +110,7 @@ class BlacklistFragment : Fragment() {
                         val array = json.getJSONArray("response")
                         if (array.length() > 0) {
                             val userObj = array.getJSONObject(0)
-                            finalId = userObj.getInt("id")
+                            finalId = userObj.getLong("id")
                             val firstName = userObj.optString("first_name", "")
                             val lastName = userObj.optString("last_name", "")
                             finalName = "$firstName $lastName".trim()
@@ -118,10 +123,10 @@ class BlacklistFragment : Fragment() {
                     // Fallback: пробуем парсить как прямой ID
                     val numericOnly = screenName.replace(Regex("[^0-9]"), "")
                     if (numericOnly.isNotEmpty()) {
-                        finalId = numericOnly.toInt()
+                        finalId = numericOnly.toLongOrNull() ?: -1L
                         if (finalId > 0) success = true
                     } else {
-                        errorMessage = getString(R.string.no_bot_token_search_error)
+                        errorMessage = getString(R.string.no_token_numeric_id_error)
                     }
                 }
             } catch (e: Exception) {

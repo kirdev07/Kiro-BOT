@@ -22,11 +22,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.vkbot.manager.utils.BotDataManager
 import com.vkbot.manager.utils.Bot
+import com.vkbot.manager.utils.BotPlatform
 
 
 /**
  * Фрагмент управления списком ботов.
- * Рефакторинг v2.1.0: View Binding, Scoped Storage migration, KTX.
  */
 class BotsFragment : Fragment() {
     
@@ -38,6 +38,7 @@ class BotsFragment : Fragment() {
     
     companion object {
         private const val TAG = "BotsFragment"
+        private val TELEGRAM_TOKEN = Regex("^\\d{5,}:[A-Za-z0-9_-]{30,}$")
     }
     
     override fun onCreateView(
@@ -72,7 +73,7 @@ class BotsFragment : Fragment() {
     
     private fun setupListeners() {
         binding.fabAddBot.setOnClickListener {
-            if (bots.size >= 5) {
+            if (bots.size >= BotDataManager.MAX_BOTS) {
                 Toast.makeText(requireContext(), R.string.max_bots_error, Toast.LENGTH_SHORT).show()
             } else {
                 showBotDialog(null)
@@ -81,7 +82,7 @@ class BotsFragment : Fragment() {
     }
     
     private fun loadBots() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             val loadedBots = withContext(Dispatchers.IO) {
                 BotDataManager.loadBots(requireContext())
             }
@@ -95,12 +96,14 @@ class BotsFragment : Fragment() {
     }
     
     
-    private fun saveBots() {
+    /** [onSaved] вызывается в главном потоке после записи — сервис должен читать уже новое состояние. */
+    private fun saveBots(onSaved: ((Context) -> Unit)? = null) {
         val appContext = requireContext().applicationContext
-        val botsCopy = bots.toList()
-        
+        val botsCopy = bots.map { it.copy() }
+
         lifecycleScope.launch(Dispatchers.IO) {
             BotDataManager.saveBots(appContext, botsCopy)
+            if (onSaved != null) withContext(Dispatchers.Main) { onSaved(appContext) }
         }
     }
     
@@ -108,6 +111,7 @@ class BotsFragment : Fragment() {
         val isEmpty = bots.isEmpty()
         binding.emptyStateBots.visibility = if (isEmpty) View.VISIBLE else View.GONE
         binding.recyclerViewBots.visibility = if (isEmpty) View.GONE else View.VISIBLE
+        binding.fabAddBot.visibility = if (bots.size < BotDataManager.MAX_BOTS) View.VISIBLE else View.GONE
         binding.tvBotsCounter.text = getString(R.string.bots_counter_format, bots.size)
     }
     
@@ -119,19 +123,39 @@ class BotsFragment : Fragment() {
             dialogBinding.etBotName.setText(it.name)
             dialogBinding.etBotToken.setText(it.token)
         }
-        
+
+        // Выбор платформы: подсказка к токену объясняет, где его взять
+        fun selectedPlatform() =
+            if (dialogBinding.togglePlatform.checkedButtonId == R.id.btn_platform_telegram) BotPlatform.TELEGRAM else BotPlatform.VK
+        fun updateTokenHint() {
+            val telegram = selectedPlatform() == BotPlatform.TELEGRAM
+            dialogBinding.tilBotToken.hint = getString(if (telegram) R.string.token_hint_telegram else R.string.token_hint_vk)
+            dialogBinding.tilBotToken.helperText = getString(if (telegram) R.string.token_help_telegram else R.string.token_help_vk)
+        }
+        dialogBinding.togglePlatform.check(
+            if (bot?.platform == BotPlatform.TELEGRAM) R.id.btn_platform_telegram else R.id.btn_platform_vk
+        )
+        updateTokenHint()
+        dialogBinding.togglePlatform.addOnButtonCheckedListener { _, _, isChecked -> if (isChecked) updateTokenHint() }
+
         MaterialAlertDialogBuilder(context)
             .setTitle(if (bot == null) R.string.add_bot_title else R.string.edit_bot_title)
             .setView(dialogBinding.root)
             .setPositiveButton(if (bot == null) R.string.add else R.string.save) { _, _ ->
                 val name = dialogBinding.etBotName.text.toString().trim()
                 val token = dialogBinding.etBotToken.text.toString().trim()
-                
+                val platform = selectedPlatform()
+
                 if (name.isEmpty() || token.isEmpty()) {
                     Toast.makeText(context, R.string.fill_all_fields_error, Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-                
+
+                if (platform == BotPlatform.TELEGRAM && !TELEGRAM_TOKEN.matches(token)) {
+                    Toast.makeText(context, R.string.token_format_error_telegram, Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
+
                 if (bots.any { it.id != bot?.id && it.name.equals(name, ignoreCase = true) }) {
                     Toast.makeText(context, R.string.bot_name_exists_error, Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
@@ -139,11 +163,12 @@ class BotsFragment : Fragment() {
                 
                 if (bot == null) {
                     val newId = (bots.maxOfOrNull { it.id } ?: 0) + 1
-                    bots.add(Bot(newId, name, token))
+                    bots.add(Bot(newId, name, token, platform = platform))
                     Toast.makeText(context, R.string.bot_added_success, Toast.LENGTH_SHORT).show()
                 } else {
                     bot.name = name
                     bot.token = token
+                    bot.platform = platform
                     Toast.makeText(context, R.string.bot_updated_success, Toast.LENGTH_SHORT).show()
                 }
                 
@@ -155,39 +180,44 @@ class BotsFragment : Fragment() {
             .show()
     }
     
-    private fun onEditBot(bot: Bot) = showBotDialog(bot)
-    
-    private fun onDeleteBot(bot: Bot) {
+    /** Адаптер отдаёт копию — находим настоящий объект из списка фрагмента. */
+    private fun findBot(clicked: Bot): Bot? = bots.find { it.id == clicked.id }
+
+    private fun onEditBot(clicked: Bot) {
+        findBot(clicked)?.let { showBotDialog(it) }
+    }
+
+    private fun onDeleteBot(clicked: Bot) {
+        val bot = findBot(clicked) ?: return
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.delete_bot_title)
             .setMessage(getString(R.string.delete_bot_confirm_format, bot.name))
             .setPositiveButton(R.string.delete) { _, _ ->
                 bots.remove(bot)
-                saveBots()
+                val anyRunning = bots.any { it.isRunning }
+                // Уведомляем сервис после сохранения
+                saveBots { ctx ->
+                    val intent = Intent(ctx, BotService::class.java).apply {
+                        action = if (anyRunning) BotService.ACTION_START else BotService.ACTION_STOP
+                    }
+                    try {
+                        if (anyRunning) ctx.startForegroundService(intent) else ctx.startService(intent)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Service sync error", e)
+                    }
+                }
                 adapter.updateBots(bots.toList())
                 updateUIState()
-                
-                // Уведомляем сервис об изменениях
-                val intent = Intent(requireContext(), BotService::class.java).apply {
-                    action = if (bots.any { it.isRunning }) BotService.ACTION_START else BotService.ACTION_STOP
-                }
-                try {
-                    if (bots.any { it.isRunning }) requireContext().startForegroundService(intent)
-                    else requireContext().startService(intent)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Service sync error", e)
-                }
-                
+
                 Toast.makeText(requireContext(), R.string.bot_deleted_success, Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
     }
     
-    private fun onClearStats(bot: Bot) {
-        val position = bots.indexOf(bot)
-        if (position == -1) return
-        
+    private fun onClearStats(clicked: Bot) {
+        val bot = findBot(clicked) ?: return
+
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.clear_stats_title)
             .setMessage(getString(R.string.clear_stats_confirm_format, bot.name))
@@ -196,8 +226,8 @@ class BotsFragment : Fragment() {
                 bot.answeredMessages = 0
                 
                 requireContext().getSharedPreferences("vk_bot_settings", Context.MODE_PRIVATE).edit {
-                    putLong("bot_${position + 1}_processed", 0)
-                    putLong("bot_${position + 1}_answered", 0)
+                    putLong("bot_${bot.id}_processed", 0)
+                    putLong("bot_${bot.id}_answered", 0)
                 }
                 
                 saveBots()
@@ -208,21 +238,22 @@ class BotsFragment : Fragment() {
             .show()
     }
     
-    private fun onToggleBot(bot: Bot) {
+    private fun onToggleBot(clicked: Bot) {
+        val bot = findBot(clicked) ?: return
         bot.isRunning = !bot.isRunning
         val status = if (bot.isRunning) R.string.status_auto_start_on else R.string.status_auto_start_off
         Toast.makeText(requireContext(), getString(R.string.bot_status_changed_format, bot.name, getString(status)), Toast.LENGTH_SHORT).show()
         
-        saveBots()
-        adapter.updateBots(bots.toList())
-        
-        // Мгновенная синхронизация с сервисом
-        val intent = Intent(requireContext(), BotService::class.java).apply {
-            action = BotService.ACTION_START 
+        // Синхронизация с сервисом сразу после сохранения
+        saveBots { ctx ->
+            val intent = Intent(ctx, BotService::class.java).apply { action = BotService.ACTION_START }
+            try {
+                ctx.startForegroundService(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Service sync error", e)
+            }
         }
-        try {
-            requireContext().startForegroundService(intent)
-        } catch (_: Exception) {}
+        adapter.updateBots(bots.toList())
     }
     
     private fun startStatsUpdater() {
