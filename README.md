@@ -7,7 +7,7 @@ Kiro Bot отвечает в личных сообщениях и группах
 ---
 
 <p align="center">
-  <img src="screenshots/01.jpg" width="400" alt="Kiro Bot Mascot">
+  <img src="screenshots/01.jpg" width="320" alt="Главный экран Kiro Bot">
 </p>
 
 ---
@@ -91,6 +91,10 @@ Kiro Bot отвечает в личных сообщениях и группах
 </p>
 <p align="center">
   <img src="screenshots/11.jpg" width="32%" />
+</p>
+
+<p align="center">
+  <img src="screenshots/chat.jpg" width="600" alt="Переписка с ботом в Telegram" />
 </p>
 
 ---
