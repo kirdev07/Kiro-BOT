@@ -20,9 +20,10 @@ object MediaResponses {
         loadAll()
     }
 
+    /** Типы вложений Telegram (имена файлов media_*.txt; GIF — «graffiti»). */
     private val mediaTypes = listOf(
-        "audio_message", "audio", "doc", "graffiti", "video", 
-        "photo", "sticker", "link", "wall", "video_message", "story"
+        "audio_message", "audio", "doc", "graffiti", "video",
+        "photo", "sticker", "video_message"
     )
 
     fun loadAll() {

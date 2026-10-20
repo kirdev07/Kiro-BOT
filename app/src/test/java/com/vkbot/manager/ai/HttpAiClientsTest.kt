@@ -40,7 +40,7 @@ class HttpAiClientsTest {
         val body = JSONObject(req.body.readUtf8())
         assertEquals("deepseek-chat", body.getString("model"))
         // Запас под рассуждения думающих моделей
-        assertEquals(1024, body.getInt("max_tokens"))
+        assertEquals(800, body.getInt("max_tokens"))
         val messages = body.getJSONArray("messages")
         assertEquals("system", messages.getJSONObject(0).getString("role"))
         assertEquals("assistant", messages.getJSONObject(2).getString("role"))
@@ -53,7 +53,7 @@ class HttpAiClientsTest {
         assertEquals("ок", OpenAiCompatibleClient(base(), "k", "m").reply("s", history, 100))
         server.takeRequest()
         val retry = JSONObject(server.takeRequest().body.readUtf8())
-        assertEquals(1024, retry.getInt("max_completion_tokens"))
+        assertEquals(800, retry.getInt("max_completion_tokens"))
         assertTrue(!retry.has("max_tokens"))
     }
 
@@ -72,6 +72,15 @@ class HttpAiClientsTest {
     @Test fun badUrlIsReported() {
         val msg = expectError { OpenAiCompatibleClient("не адрес", "k", "m").reply("s", history, 100) }
         assertTrue(msg, msg.contains("адрес"))
+    }
+
+    @Test fun retriesWithinFreeTierTokenLimit() {
+        // Ответ Groq на бесплатном тарифе (найдено при проверке на телефоне)
+        server.enqueue(json("""{"error":{"message":"Request too large for model `qwen/qwen3.8-27b` on output tokens per minute (OTPM): Limit 700, Requested 800. The request's estimate exceeded the limit."}}""", 413))
+        server.enqueue(json("""{"choices":[{"message":{"content":"Привет!"}}]}"""))
+        assertEquals("Привет!", OpenAiCompatibleClient(base(), "k", "m").reply("s", history, 100))
+        server.takeRequest()
+        assertEquals(630, JSONObject(server.takeRequest().body.readUtf8()).getInt("max_tokens"))
     }
 
     @Test fun modelListSkipsNonChatModels() {

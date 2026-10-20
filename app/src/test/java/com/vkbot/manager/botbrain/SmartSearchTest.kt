@@ -1,5 +1,6 @@
 package com.vkbot.manager.botbrain
 
+import com.vkbot.manager.botbrain.conversation.AnswerSelector
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
@@ -28,7 +29,7 @@ class SmartSearchTest {
 
         /** Вопросы из базы, среди которых бот выбирает ответ (лучший уровень совпадения). */
         fun chosenQuestions(message: String): Set<String> {
-            return BotBrain.selectionPool(db.searchAnswers(message, "")).map { it.answer.questionText }.toSet()
+            return AnswerSelector.selectionPool(db.searchAnswers(message, "")).map { it.answer.questionText }.toSet()
         }
     }
 
@@ -43,6 +44,15 @@ class SmartSearchTest {
 
     @Test fun longQuestionAboutProgrammingLanguages() =
         assertAnswersAbout("как ты думаешь стоит ли мне учить питон или лучше джаву для начала", "питон", "джав")
+
+    // Опечатка в единственном слове на большой базе (15 000 строк) — найдено в Telegram
+    @Test fun singleWordTypoOnLargeBase() = assertAnswersAbout("превет", "привет", "прив", "хай")
+
+    @Test fun singleWordTypoInLongerWord() = assertAnswersAbout("спосибо", "спасибо", "спс")
+
+    // Пустое слово «там» не должно перехватывать вопрос у ИИ — найдено в Telegram
+    @Test fun deicticWordsAreNotMeaning() =
+        assertTrue(chosenQuestions("а какое там население?").none { it.trim() == "там" })
 
     @Test fun letterYoIsSameAsYe() = assertAnswersAbout("чё каво", "че каво")
 

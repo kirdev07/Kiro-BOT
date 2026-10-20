@@ -1,69 +1,32 @@
 package com.vkbot.manager.botbrain
 
 import java.io.Serializable
-import java.util.regex.Pattern
 
 /**
- * Вложение ответа.
- * - Объект VK: type{owner_id}_{id}_{access_key} (photo, video, audio, doc, wall...).
- * - Внешняя ссылка ([url]): картинка из интернета загружается в VK при отправке,
- *   остальные ссылки (YouTube и т.п.) добавляются в текст — VK покажет превью.
+ * Вложение ответа — ссылка. Картинка или GIF скачивается и приходит в Telegram медиа,
+ * видео и прочие ссылки идут текстом (Telegram покажет превью).
  */
-data class Attachment(
-    val type: String = "",
-    val id: String = "",
-    val ownerId: String = "",
-    val accessKey: String = "",
-    val url: String = ""
-) : Serializable {
+data class Attachment(val url: String) : Serializable {
 
-    val isExternal: Boolean get() = url.isNotEmpty()
+    /** Как вложение хранится в answer.txt и показывается в редакторе. */
+    fun toStorageString(): String = url
 
-    fun toVkString(): String {
-        val base = "${type}${ownerId}_$id"
-        return if (accessKey.isEmpty()) base else "${base}_$accessKey"
-    }
-
-    /** Как вложение хранится в answer.txt. */
-    fun toStorageString(): String = if (isExternal) url else toVkString()
-
-    /** Как вложение показывается в редакторе. */
-    fun toDisplayString(): String = if (isExternal) url else "https://vk.com/${toVkString()}"
-
-    override fun toString(): String = toStorageString()
+    override fun toString(): String = url
 
     companion object {
-        private val VK_STRING_PATTERN = Pattern.compile("([a-z]+)(-?\\d+)_(\\d+)(?:_(\\w+))?")
-        private val VK_HOSTS = listOf("vk.com", "vk.ru", "vkvideo.ru", "m.vk.com")
+        /** Код объекта из старых баз VK-версии: photo-123_456, video1_2_key… */
+        private val LEGACY_VK_CODE = Regex("^[a-z]+-?\\d+_\\d+(?:_\\w+)?$")
 
-        /** Клипы в ссылках VK — это видео для messages.send. */
-        private val TYPE_ALIASES = mapOf("clip" to "video")
-
+        /** Ссылка → вложение. Коды объектов из старых баз превращаются в ссылку, чтобы не потеряться. */
         @JvmStatic
         fun parse(value: String?): Attachment? {
             val text = value?.trim().orEmpty()
-            if (text.isEmpty()) return null
-
-            val isLink = text.startsWith("http://", ignoreCase = true) || text.startsWith("https://", ignoreCase = true)
-            if (isLink && !isVkLink(text)) return Attachment(url = text)
-
-            val matcher = VK_STRING_PATTERN.matcher(text)
-            if (matcher.find()) {
-                val type = matcher.group(1) ?: ""
-                return Attachment(
-                    type = TYPE_ALIASES[type] ?: type,
-                    ownerId = matcher.group(2) ?: "",
-                    id = matcher.group(3) ?: "",
-                    accessKey = matcher.group(4) ?: ""
-                )
+            return when {
+                text.isEmpty() -> null
+                text.startsWith("http://", ignoreCase = true) || text.startsWith("https://", ignoreCase = true) -> Attachment(text)
+                LEGACY_VK_CODE.matches(text) -> Attachment("https://vk.com/$text")
+                else -> null
             }
-            // Ссылка VK не на медиа (профиль, группа) — отправим как ссылку
-            return if (isLink) Attachment(url = text) else null
-        }
-
-        private fun isVkLink(url: String): Boolean {
-            val host = url.substringAfter("://").substringBefore("/").substringBefore("?").lowercase()
-            return VK_HOSTS.any { host == it || host.endsWith(".$it") }
         }
     }
 }

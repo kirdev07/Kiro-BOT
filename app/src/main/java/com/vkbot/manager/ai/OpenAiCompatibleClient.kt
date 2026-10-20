@@ -31,6 +31,13 @@ class OpenAiCompatibleClient(
             body.put("max_completion_tokens", tokens)
             response = AiHttp.postJson(endpoint, headers(), body)
         }
+        // Бесплатные тарифы (Groq и др.) ограничивают токены ответа: «Limit 1000, Requested 1024» — просим меньше
+        val limit = TOKEN_LIMIT.find(response.body)?.groupValues?.get(1)?.toIntOrNull()
+        if (response.code in TOO_LARGE_CODES && limit != null && limit < tokens) {
+            val key = if (body.has("max_completion_tokens")) "max_completion_tokens" else "max_tokens"
+            body.put(key, (limit * 9 / 10).coerceAtLeast(MIN_RETRY_TOKENS))
+            response = AiHttp.postJson(endpoint, headers(), body)
+        }
         if (response.code !in 200..299) throw AiException(AiHttp.describeError("ИИ", response))
 
         val message = response.json?.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")
@@ -76,7 +83,11 @@ class OpenAiCompatibleClient(
         private fun headersFor(apiKey: String): Map<String, String> =
             if (apiKey.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer $apiKey")
 
-        private const val MIN_OUTPUT_TOKENS = 1024
+        /** Запас под рассуждения думающих моделей; меньше лимита бесплатного Groq (1000). */
+        private const val MIN_OUTPUT_TOKENS = 800
+        private const val MIN_RETRY_TOKENS = 64
+        private val TOO_LARGE_CODES = setOf(400, 413, 429)
+        private val TOKEN_LIMIT = Regex("Limit (\\d+), Requested \\d+")
         private val NOT_CHAT = listOf("whisper", "tts", "orpheus", "guard", "embed", "dall-e", "moderation")
 
         private val LOCAL_HOSTS = setOf("localhost", "127.0.0.1")

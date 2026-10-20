@@ -9,18 +9,18 @@ import com.vkbot.manager.utils.BlockedUser
 
 class BlacklistAdapter(
     private var users: List<BlockedUser>,
-    private val onRemoveClick: (Long) -> Unit
+    private val onRemoveClick: (BlockedUser) -> Unit
 ) : RecyclerView.Adapter<BlacklistAdapter.ViewHolder>() {
 
     class ViewHolder(private val binding: ItemBlacklistUserBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(user: BlockedUser, onRemoveClick: (Long) -> Unit) {
+        fun bind(user: BlockedUser, onRemoveClick: (BlockedUser) -> Unit) {
             val context = itemView.context
-            
+
             // Устранение конкатенации: используем ресурсную строку с плейсхолдерами
             binding.tvUserId.text = context.getString(R.string.blacklist_item_format, user.name, user.id)
-            
+
             binding.btnRemove.setOnClickListener {
-                onRemoveClick(user.id)
+                onRemoveClick(user)
             }
         }
     }
@@ -36,6 +36,8 @@ class BlacklistAdapter(
 
     override fun getItemCount() = users.size
 
+    fun userAt(position: Int): BlockedUser = users[position]
+
     fun updateData(newUsers: List<BlockedUser>) {
         val diffCallback = UserDiffCallback(users, newUsers)
         val diffResult = DiffUtil.calculateDiff(diffCallback)
@@ -49,11 +51,11 @@ class BlacklistAdapter(
     ) : DiffUtil.Callback() {
         override fun getOldListSize(): Int = oldList.size
         override fun getNewListSize(): Int = newList.size
-        
+
         override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
             return oldList[oldItemPosition].id == newList[newItemPosition].id
         }
-        
+
         override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
             return oldList[oldItemPosition] == newList[newItemPosition]
         }

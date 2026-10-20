@@ -21,7 +21,7 @@ import java.net.URL
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 
-/** Правила общения, общие с VK-ботом (вынесены, чтобы ядро тестировалось без Android). */
+/** Правила общения (вынесены, чтобы ядро тестировалось без Android). */
 class ChatRules(
     val chatsEnabled: () -> Boolean = { SettingsManager.isChatsEnabled },
     val chatPrefix: () -> String = { SettingsManager.chatPrefix },
@@ -257,7 +257,7 @@ class TelegramBot(
         return listOf(command, rest).filter { it.isNotBlank() }.joinToString(" ").trim()
     }
 
-    /** Типы вложений в терминах VK, чтобы работали медиа-ответы из media_*.txt. */
+    /** Типы вложений — имена совпадают с файлами медиа-ответов media_*.txt (GIF — «graffiti»). */
     private fun attachmentTypesOf(msg: JSONObject): List<String> = listOfNotNull(
         "photo".takeIf { msg.has("photo") },
         "video".takeIf { msg.has("video") },
@@ -320,11 +320,6 @@ class TelegramBot(
         val media = mutableListOf<Media>()
         val links = mutableListOf<String>()
         for (a in attachments) {
-            if (!a.isExternal) {
-                // Объект VK в Telegram не отправить — даём ссылку, Telegram покажет превью
-                links.add("https://vk.com/${a.toVkString()}")
-                continue
-            }
             val resolved = resolveMedia(a.url)
             if (resolved != null) media.add(resolved) else links.add(a.url)
         }

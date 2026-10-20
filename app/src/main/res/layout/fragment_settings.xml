@@ -1,298 +1,220 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Настройки: меню разделов; раздел открывается тем же фрагментом с аргументом section -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_main"
-    android:padding="16dp">
+    android:background="@color/bg_main">
 
-    <TextView
-        android:id="@+id/tv_settings_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Настройки бота"
-        android:textColor="@color/white"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ScrollView
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="16dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_settings_title">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
 
+        <TextView
+            android:id="@+id/tv_settings_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="@string/settings_title"
+            android:textColor="@color/white"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <!-- ===== Меню разделов ===== -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/settings_menu"
+            style="@style/SettingsCard">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingVertical="4dp">
+
+                <LinearLayout android:id="@+id/row_conversation" style="@style/SettingsRow">
+                    <TextView style="@style/SettingsRowTitle" android:text="@string/settings_section_conversation" />
+                    <TextView style="@style/SettingsRowSubtitle" android:text="@string/settings_section_conversation_desc" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/row_chats" style="@style/SettingsRow">
+                    <TextView style="@style/SettingsRowTitle" android:text="@string/settings_section_chats" />
+                    <TextView style="@style/SettingsRowSubtitle" android:text="@string/settings_section_chats_desc" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/row_protection" style="@style/SettingsRow">
+                    <TextView style="@style/SettingsRowTitle" android:text="@string/settings_section_protection" />
+                    <TextView style="@style/SettingsRowSubtitle" android:text="@string/settings_section_protection_desc" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/row_learning" style="@style/SettingsRow">
+                    <TextView style="@style/SettingsRowTitle" android:text="@string/settings_section_learning" />
+                    <TextView style="@style/SettingsRowSubtitle" android:text="@string/settings_section_learning_desc" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/row_developer" style="@style/SettingsRow">
+                    <TextView style="@style/SettingsRowTitle" android:text="@string/settings_section_developer" />
+                    <TextView style="@style/SettingsRowSubtitle" android:text="@string/settings_section_developer_desc" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ===== Разговор ===== -->
         <LinearLayout
+            android:id="@+id/group_conversation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-
-
-            <!-- 2. Анти-флуд -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardBackgroundColor="@color/bg_card"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Защита от спама"
-                        android:textColor="@color/white"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="8dp"/>
+            <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
+                <LinearLayout style="@style/SettingsCardContent">
+                    <TextView style="@style/SettingsCardTitle" android:text="@string/personality_title" />
 
                     <com.google.android.material.button.MaterialButtonToggleGroup
-                        android:id="@+id/toggle_antispam_level"
+                        android:id="@+id/toggle_personality"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        app:singleSelection="true"
                         app:selectionRequired="true"
-                        android:layout_marginBottom="8dp">
+                        app:singleSelection="true">
 
-                        <Button
-                            android:id="@+id/btn_antispam_off"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Выкл" />
-
-                        <Button
-                            android:id="@+id/btn_antispam_normal"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Норма" />
-
-                        <Button
-                            android:id="@+id/btn_antispam_strict"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Макс" />
+                        <Button android:id="@+id/btn_personality_default" style="@style/SettingsToggleButton" android:text="@string/personality_default" />
+                        <Button android:id="@+id/btn_personality_warm" style="@style/SettingsToggleButton" android:text="@string/personality_warm" />
+                        <Button android:id="@+id/btn_personality_cheeky" style="@style/SettingsToggleButton" android:text="@string/personality_cheeky" />
+                        <Button android:id="@+id/btn_personality_polite" style="@style/SettingsToggleButton" android:text="@string/personality_polite" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Ограничивает частоту ответов для одного пользователя, чтобы избежать зависаний и капчи."
-                        android:textColor="@color/text_medium"
-                        android:textSize="13sp"
-                        android:layout_marginBottom="12dp" />
+                    <TextView style="@style/SettingsDesc" android:text="@string/personality_desc" />
 
                     <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switch_autoban"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Авто-бан спамеров"
-                        android:textColor="@color/white"
-                        android:textSize="16sp"/>
+                        android:id="@+id/switch_auto_mood"
+                        style="@style/SettingsSwitch"
+                        android:text="@string/auto_mood_switch" />
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Пользователи, превысившие лимит сообщений, будут автоматически добавлены в черный список."
-                        android:textColor="@color/text_medium"
-                        android:textSize="13sp" />
+                    <TextView style="@style/SettingsDesc" android:text="@string/auto_mood_desc" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 3. Поведение (Fallback) -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardBackgroundColor="@color/bg_card"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Если фраза не найдена"
-                        android:textColor="@color/white"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="8dp"/>
+            <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
+                <LinearLayout style="@style/SettingsCardContent">
+                    <TextView style="@style/SettingsCardTitle" android:text="@string/settings_fallback_title" />
 
                     <com.google.android.material.button.MaterialButtonToggleGroup
                         android:id="@+id/toggle_fallback_strategy"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        app:singleSelection="true"
                         app:selectionRequired="true"
-                        android:layout_marginBottom="8dp">
+                        app:singleSelection="true">
 
-                        <Button
-                            android:id="@+id/btn_fallback_silent"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Молчать" />
-
-                        <Button
-                            android:id="@+id/btn_fallback_random"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Болтать" />
-
-                        <Button
-                            android:id="@+id/btn_fallback_error"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Ошибка" />
+                        <Button android:id="@+id/btn_fallback_silent" style="@style/SettingsToggleButton" android:text="@string/settings_fallback_silent" />
+                        <Button android:id="@+id/btn_fallback_random" style="@style/SettingsToggleButton" android:text="@string/settings_fallback_random" />
+                        <Button android:id="@+id/btn_fallback_error" style="@style/SettingsToggleButton" android:text="@string/settings_fallback_error" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Выберите тактику: бот может проигнорировать неизвестную фразу, ответить случайной из базы или выдать ошибку."
-                        android:textColor="@color/text_medium"
-                        android:textSize="13sp" />
+                    <TextView style="@style/SettingsDesc" android:text="@string/settings_fallback_desc" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
 
-            <!-- 4. Дополнительные настройки -->
+        <!-- ===== Беседы ===== -->
+        <LinearLayout
+            android:id="@+id/group_chats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="12dp"
-                    app:cardBackgroundColor="@color/bg_card"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp">
+            <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
+                <LinearLayout style="@style/SettingsCardContent">
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switch_chats"
+                        style="@style/SettingsSwitch"
+                        android:text="@string/settings_chats_switch" />
 
-                    <LinearLayout
+                    <TextView style="@style/SettingsDesc" android:text="@string/settings_chats_desc" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/input_chat_prefix_layout"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:hint="@string/settings_chat_prefix_hint"
+                        app:boxStrokeColor="@color/text_high"
+                        app:hintTextColor="@color/text_high">
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_mark_read"
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_chat_prefix"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Авто-прочтение сообщений"
+                            android:inputType="text"
+                            android:maxLines="1"
                             android:textColor="@color/white" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Бот будет сразу помечать сообщения как прочитанные, чтобы они не висели в уведомлениях."
-                            android:textColor="@color/text_medium"
-                            android:textSize="12sp"
-                            android:layout_marginBottom="8dp" />
-
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_chats"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Работа в беседах"
-                            android:textColor="@color/white" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Включает реакцию бота в многопользовательских беседах чата (требуется настройка обращения)."
-                            android:textColor="@color/text_medium"
-                            android:textSize="12sp"
-                            android:layout_marginBottom="12dp" />
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/input_chat_prefix_layout"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:hint="Обращение (напр. 'Бот,')"
-                            app:boxStrokeColor="@color/text_high"
-                            app:hintTextColor="@color/text_high">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_chat_prefix"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:textColor="@color/white"
-                                android:maxLines="1"
-                                android:inputType="text" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <TextView
-                            android:id="@+id/tv_chat_prefix_desc"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="В беседе бот будет реагировать только если фраза начинается с этого слова (например: 'Бот, ' или 'Киро'). Запятая тоже будет учитываться."
-                            android:textColor="@color/text_medium"
-                            android:textSize="13sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-            <!-- 5. Управление из чата -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardBackgroundColor="@color/bg_card"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
+                    </com.google.android.material.textfield.TextInputLayout>
 
                     <TextView
+                        android:id="@+id/tv_chat_prefix_desc"
+                        style="@style/SettingsDesc"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/settings_chat_prefix_desc" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <!-- ===== Защита ===== -->
+        <LinearLayout
+            android:id="@+id/group_protection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
+                <LinearLayout style="@style/SettingsCardContent">
+                    <TextView style="@style/SettingsCardTitle" android:text="@string/settings_antispam_title" />
+
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/toggle_antispam_level"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/owner_title"
-                        android:textColor="@color/white"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="8dp" />
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
+
+                        <Button android:id="@+id/btn_antispam_off" style="@style/SettingsToggleButton" android:text="@string/settings_antispam_off" />
+                        <Button android:id="@+id/btn_antispam_normal" style="@style/SettingsToggleButton" android:text="@string/settings_antispam_normal" />
+                        <Button android:id="@+id/btn_antispam_strict" style="@style/SettingsToggleButton" android:text="@string/settings_antispam_strict" />
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                    <TextView style="@style/SettingsDesc" android:text="@string/settings_antispam_desc" />
 
                     <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switch_unanswered_log"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/unanswered_log_switch"
-                        android:textColor="@color/white" />
+                        android:id="@+id/switch_autoban"
+                        style="@style/SettingsSwitch"
+                        android:text="@string/settings_autoban_switch" />
 
-                    <TextView
+                    <TextView style="@style/SettingsDesc" android:text="@string/settings_autoban_desc" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_open_blacklist"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/unanswered_log_desc"
-                        android:textColor="@color/text_medium"
-                        android:textSize="12sp"
-                        android:layout_marginBottom="12dp" />
+                        android:text="@string/settings_blacklist_button"
+                        android:textColor="@color/white"
+                        app:icon="@drawable/ic_block"
+                        app:iconTint="@color/white"
+                        app:strokeColor="@color/text_low" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <!-- ===== Обучение и управление ===== -->
+        <LinearLayout
+            android:id="@+id/group_learning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
+                <LinearLayout style="@style/SettingsCardContent">
+                    <TextView style="@style/SettingsCardTitle" android:text="@string/owner_title" />
 
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
@@ -306,24 +228,44 @@
                             android:id="@+id/et_owner_ids"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:textColor="@color/white"
-                            android:maxLines="1"
+                            android:digits="0123456789, "
                             android:inputType="text"
-                            android:digits="0123456789, " />
+                            android:maxLines="1"
+                            android:textColor="@color/white" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        style="@style/SettingsDesc"
                         android:layout_marginTop="4dp"
-                        android:text="@string/owner_desc"
-                        android:textColor="@color/text_medium"
-                        android:textSize="13sp" />
+                        android:text="@string/owner_desc" />
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switch_unanswered_log"
+                        style="@style/SettingsSwitch"
+                        android:text="@string/unanswered_log_switch" />
+
+                    <TextView style="@style/SettingsDesc" android:text="@string/unanswered_log_desc" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-
-
         </LinearLayout>
-    </ScrollView>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <!-- ===== Для разработчика ===== -->
+        <LinearLayout
+            android:id="@+id/group_developer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
+                <LinearLayout style="@style/SettingsCardContent">
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switch_brain_debug"
+                        style="@style/SettingsSwitch"
+                        android:text="@string/brain_debug_switch" />
+
+                    <TextView style="@style/SettingsDesc" android:text="@string/brain_debug_desc" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

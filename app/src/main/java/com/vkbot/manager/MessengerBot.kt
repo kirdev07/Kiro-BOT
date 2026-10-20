@@ -1,10 +1,10 @@
 package com.vkbot.manager
 
 /**
- * Общий интерфейс ядра бота для любого мессенджера (VK, Telegram).
+ * Интерфейс ядра бота (сейчас — Telegram); сервис работает с ним, не зная деталей Bot API.
  *
  * Обработчик сообщений получает карту: text (без обращения к боту), raw_text (как написал пользователь),
- * from_id, peer_id, first_name, attachment_types (типы вложений в терминах VK: photo, video, audio_message, sticker, doc...)
+ * from_id, peer_id, first_name, attachment_types (типы вложений: photo, video, audio_message, sticker, doc… — как в именах media_*.txt)
  * и возвращает text + attachments или null, если отвечать не нужно.
  */
 interface MessengerBot {

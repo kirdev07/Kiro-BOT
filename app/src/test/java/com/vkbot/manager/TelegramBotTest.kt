@@ -198,12 +198,12 @@ class TelegramBotTest {
     }
 
     @Test
-    fun gifIsAnimationAndPagesAndVkGoToText() {
+    fun gifIsAnimationAndPagesAndVideosGoToText() {
         val b = bot {
             mapOf("text" to "", "attachments" to listOf(
                 Attachment.parse(fileUrl("dance"))!!,
                 Attachment.parse(fileUrl("page"))!!,
-                Attachment.parse("https://vk.com/video-1_2")!!
+                Attachment.parse("https://youtu.be/dQw4w9WgXcQ")!!
             ))
         }
         runBlocking { b.start() }
@@ -212,7 +212,7 @@ class TelegramBotTest {
         b.stop()
         val anim = sent("sendAnimation").first()
         assertEquals("<file>", anim["animation"])
-        assertEquals("${fileUrl("page")}\nhttps://vk.com/video-1_2", anim["caption"])
+        assertEquals("${fileUrl("page")}\nhttps://youtu.be/dQw4w9WgXcQ", anim["caption"])
     }
 
     @Test

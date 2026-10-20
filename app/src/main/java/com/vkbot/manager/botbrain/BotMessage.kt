@@ -9,11 +9,12 @@ data class BotMessage(
     val text: String = "",
     val authorId: String = "",
     val authorName: String = "",
-    val platform: String = "vk",
-    /** Беседа / группа, а не личные сообщения. */
-    val isGroupChat: Boolean = false
+    /** Группа, а не личные сообщения. */
+    val isGroupChat: Boolean = false,
+    /** Чат Telegram (chat.id): история диалога ведётся отдельно в каждом чате. */
+    val chatId: String = ""
 ) : Serializable {
 
-    override fun toString(): String = "[$platform] Msg $authorName: $text"
+    override fun toString(): String = "Msg $authorName: $text"
 
 }

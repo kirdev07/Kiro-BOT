@@ -63,4 +63,49 @@ class UnansweredLogTest {
 
     @Test
     fun brokenJsonGivesEmptyLog() = assertEquals(0, UnansweredLog.fromJson("not json").size)
+
+    @Test
+    fun similarQuestionsAreGrouped() {
+        val log = UnansweredLog()
+        log.record("Какая погода в Москве?", now = 1)
+        log.record("бот, какая погода в москве сегодня", now = 2)
+        log.record("какая погда в москве", now = 3)
+        log.record("погода в Москве какая", now = 4)
+        log.record("Сколько стоит билет", now = 5)
+        val top = log.top()
+        assertEquals(2, top.size)
+        assertEquals(4, top[0].count)
+        // Удаление по любому тексту группы
+        assertTrue(log.remove("какая погода в москве сегодня"))
+        assertEquals(listOf("Сколько стоит билет"), log.top().map { it.text })
+    }
+
+    @Test
+    fun aiSuggestionIsKeptSeparately() {
+        val log = UnansweredLog()
+        log.record("какая погода в москве", suggestion = "Не знаю, посмотри прогноз")
+        log.record("Какая погода в Москве?")
+        val e = log.top().single()
+        assertEquals("Какая погода в Москве?", e.text)
+        assertEquals("Не знаю, посмотри прогноз", e.suggestion)
+    }
+
+    @Test
+    fun junkIsNotRecorded() {
+        val log = UnansweredLog()
+        listOf("ок", "a", "https://youtu.be/abc123", "www.kiro.ru", "аааааааааа", "ыыыыыыыыы!!!", "фывапролджэйцукенгшщзхъячсмитьбю",
+            "12345", "😂😂😂").forEach { log.record(it) }
+        assertEquals(0, log.size)
+        log.record("смотри https://youtu.be/abc что это")
+        assertEquals(1, log.size)
+    }
+
+    @Test
+    fun oldFileWithDuplicateGroupsIsMerged() {
+        val json = """[{"text":"как дела","count":2,"last":10},{"text":"Как дела бот?","count":3,"last":20,"ai":"норм"}]"""
+        val e = UnansweredLog.fromJson(json).top().single()
+        assertEquals(5, e.count)
+        assertEquals("Как дела бот?", e.text)
+        assertEquals("норм", e.suggestion)
+    }
 }

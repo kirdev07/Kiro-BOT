@@ -25,7 +25,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="ID пользователей в этом списке будут полностью проигнорированы ботом.\nЗащита от флуда активна (сброс если > 5 соообщ/4сек)."
+        android:text="ID пользователей в этом списке будут полностью проигнорированы ботом.\nЗащита от флуда активна (не больше 5 сообщений за 4 секунды)."
         android:textColor="@color/text_medium"
         android:textSize="14sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -58,8 +58,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:background="@android:color/transparent"
-                android:hint="VK ID или ссылка"
-                android:inputType="textUri|textNoSuggestions"
+                android:hint="@string/blacklist_id_hint"
+                android:inputType="number"
                 android:textColor="@color/white"
                 android:textColorHint="@color/text_low"
                 android:textSize="16sp" />
@@ -78,6 +78,7 @@
     <!-- Список забаненных пользователей -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_blacklist"
+        android:tag="no_tab_swipe"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"

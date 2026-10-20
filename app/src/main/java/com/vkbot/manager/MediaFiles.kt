@@ -23,7 +23,7 @@ class HttpResult(val bytes: ByteArray, val headerType: String, val finalUrl: Str
     val isHtml get() = headerType.contains("html") || MediaFiles.looksLikeHtml(bytes)
 }
 
-/** Скачивание по ссылке и отправка файлом (multipart) — общее для VK и Telegram. */
+/** Скачивание по ссылке и отправка файлом (multipart) — для отправки в Telegram. */
 object MediaFiles {
     private const val TIMEOUT_MS = 20_000
     const val MAX_SIZE_BYTES = 20L * 1024 * 1024

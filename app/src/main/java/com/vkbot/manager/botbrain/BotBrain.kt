@@ -2,25 +2,54 @@ package com.vkbot.manager.botbrain
 
 import android.content.Context
 import android.util.Log
+import com.vkbot.manager.botbrain.conversation.AnswerSelector
+import com.vkbot.manager.botbrain.conversation.BrainDebug
+import com.vkbot.manager.botbrain.conversation.ConversationContext
+import com.vkbot.manager.botbrain.conversation.ConversationPipeline
+import com.vkbot.manager.botbrain.conversation.ConversationProcessor
+import com.vkbot.manager.botbrain.conversation.ConversationRules
+import com.vkbot.manager.botbrain.conversation.DatabaseContextProcessor
+import com.vkbot.manager.botbrain.conversation.DatabaseExactProcessor
+import com.vkbot.manager.botbrain.conversation.DatabaseResponder
+import com.vkbot.manager.botbrain.conversation.DatabaseSmartProcessor
+import com.vkbot.manager.botbrain.conversation.DialogHistory
+import com.vkbot.manager.botbrain.conversation.FollowUpProcessor
+import com.vkbot.manager.botbrain.conversation.MirrorFollowUpProcessor
+import com.vkbot.manager.botbrain.conversation.Mood
+import com.vkbot.manager.botbrain.conversation.SentimentAnalyzer
+import com.vkbot.manager.botbrain.conversation.Placeholders
+import com.vkbot.manager.botbrain.conversation.Reply
+import com.vkbot.manager.botbrain.conversation.ReplyKind
+import com.vkbot.manager.botbrain.conversation.ResponsePostProcessor
+import com.vkbot.manager.botbrain.conversation.SentimentProcessor
+import com.vkbot.manager.botbrain.conversation.SessionFactsProcessor
+import com.vkbot.manager.botbrain.conversation.functions.ChanceFunction
+import com.vkbot.manager.botbrain.conversation.functions.ChoiceFunction
+import com.vkbot.manager.botbrain.conversation.functions.DateFunction
+import com.vkbot.manager.botbrain.conversation.functions.MathFunction
+import com.vkbot.manager.botbrain.conversation.functions.RandomFunction
+import com.vkbot.manager.botbrain.conversation.functions.TimeFunction
+import com.vkbot.manager.botbrain.conversation.functions.WhenFunction
 import com.vkbot.manager.utils.SettingsManager
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.random.Random
 
 /**
- * «Мозг» бота: выбор ответа из базы с учётом истории диалога и контекста.
+ * «Мозг» бота — координатор разговора:
+ * сообщение → разговорный конвейер (база, функции, продолжения, реакции) → ИИ → запасной ответ → итоговая обработка.
+ * Правила разговора живут в пакете conversation, здесь — только порядок и история.
  */
-class BotBrain(val answerDatabase: AnswerDatabase?) {
+class BotBrain(
+    val answerDatabase: AnswerDatabase?,
+    presetRules: ConversationRules? = null,
+    private val random: Random = Random.Default,
+    /** Для тестов: наборы характера (id → файл набора без слияния). */
+    private val presetPacks: Map<String, ConversationRules> = emptyMap(),
+    private val clock: () -> Long = System::currentTimeMillis
+) {
 
     fun interface LogCallback {
         fun onLog(message: String)
-    }
-
-    private val userHistories = object : LinkedHashMap<String, UserResponseHistory>(MAX_USERS_HISTORY + 1, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<String, UserResponseHistory>): Boolean {
-            return size > MAX_USERS_HISTORY
-        }
     }
 
     private val rwLock = ReentrantReadWriteLock()
@@ -30,27 +59,84 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
 
     private var fallbackResponses: List<String> = emptyList()
 
+    /** Правила из conversation.txt; в тестах подставляются готовые. */
+    private val rulesFromFile = presetRules == null
+    @Volatile private var baseRules: ConversationRules = presetRules ?: ConversationRules.EMPTY
+    /** Готовые правила для каждого характера: "" — обычный, остальные — поверх него. */
+    @Volatile private var rulesByPersonality: Map<String, ConversationRules> = mergePacks(baseRules, presetPacks)
+
+    /** История диалогов (отдельно по чатам и собеседникам). */
+    val history = DialogHistory(clock = clock)
+
+    private val responder = DatabaseResponder { answerDatabase?.recordUsage(it) }
+
+    private val pipeline = ConversationPipeline(buildProcessors())
+
     /** Журнал «Не знаю ответа»: вопросы, на которые не нашлось ответа в базе. */
     val unanswered: UnansweredLog = answerDatabase?.fileManager?.loadUnanswered() ?: UnansweredLog()
 
     /** Вести ли журнал (переключатель в настройках; сервис подставляет SettingsManager). */
     var isUnansweredLogEnabled: () -> Boolean = { true }
 
-    /** ИИ-помощник: вызывается, когда в базе нет ответа; null — ИИ не ответил (дальше запасной ответ). */
-    var aiResponder: ((BotMessage) -> String?)? = null
+    /**
+     * ИИ-помощник: вызывается, когда в базе нет ответа; получает последние реплики разговора.
+     * null — ИИ не ответил (дальше отложенный ответ базы или запасная фраза).
+     */
+    var aiResponder: ((BotMessage, List<DialogHistory.Turn>) -> String?)? = null
+
+    /** ИИ включён и настроен — тогда неуверенные совпадения базы уступают ему. */
+    var aiAvailable: () -> Boolean = { false }
+
+    /** Характер фраз (id из [ConversationRules.PERSONALITIES]), если не включено настроение. */
+    var personality: () -> String = { "" }
+
+    /** Менять характер по настроению бота к собеседнику (похвала / ругань). */
+    var autoMood: () -> Boolean = { false }
+
+    /** Отладка мозга: почему выбран такой ответ (в лог разработчика, не собеседнику). */
+    var debugListener: ((BrainDebug) -> Unit)? = null
 
     init {
         log("BotBrain инициализирован")
-        loadFallbacks()
+        loadFiles()
         // Пока бот был выключен, базу могли пополнить в редакторе
         answerDatabase?.let { db -> unanswered.prune { db.searchAnswers(it, "").isNotEmpty() } }
     }
 
-    private fun loadFallbacks() {
-        if (answerDatabase?.fileManager != null) {
-            fallbackResponses = answerDatabase.fileManager.loadTxtList("fallback.txt")
-        }
+    private fun buildProcessors(): List<ConversationProcessor> = listOf(
+        DatabaseContextProcessor(responder),
+        SessionFactsProcessor(),
+        MirrorFollowUpProcessor(responder),
+        DatabaseExactProcessor(responder),
+        ChoiceFunction(), ChanceFunction(), WhenFunction(), TimeFunction(), DateFunction(), MathFunction(), RandomFunction(),
+        FollowUpProcessor(),
+        SentimentProcessor(),
+        DatabaseSmartProcessor(responder)
+    )
+
+    private fun loadFiles() {
+        val fm = answerDatabase?.fileManager ?: return
+        fallbackResponses = fm.loadTxtList("fallback.txt")
+        reloadRules()
     }
+
+    /** Перечитывает conversation.txt и наборы характера. */
+    fun reloadRules() {
+        val fm = answerDatabase?.fileManager ?: return
+        if (!rulesFromFile) return
+        val base = ConversationRules.parse(fm.loadTxtList(ConversationRules.FILE_NAME))
+        val packs = ConversationRules.PERSONALITIES.filter { it.isNotEmpty() }
+            .associateWith { ConversationRules.parse(fm.loadTxtList(ConversationRules.personalityFile(it))) }
+        rulesByPersonality = mergePacks(base, packs)
+        baseRules = base
+    }
+
+    private fun mergePacks(base: ConversationRules, packs: Map<String, ConversationRules>): Map<String, ConversationRules> =
+        mapOf("" to base) + packs.mapValues { (_, pack) -> base.overriddenBy(pack) }
+
+    /** Характер для этого сообщения: по настроению или выбранный в настройках. */
+    private fun personalityFor(dialog: DialogHistory.Dialog): String =
+        if (autoMood()) Mood.personalityFor(dialog.mood()) else personality()
 
     fun setLogCallback(callback: LogCallback?) {
         this.logCallback = callback
@@ -63,89 +149,71 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
     fun processMessage(message: BotMessage?): BotResponse? {
         if (message == null || message.text.isBlank()) return null
         try {
-            val sr = rwLock.read { findAnswerSmart(message) }
-            if (sr != null) return prepareResponse(sr, message)
+            val dialog = history.dialog(message.chatId, message.authorId)
+            // Настроение меняется от похвалы и ругани — даже если ответит база
+            dialog.changeMood(Mood.deltaFor(SentimentAnalyzer.classify(ConversationRules.words(message.text), baseRules)))
+            val personality = personalityFor(dialog)
+            val rules = rulesByPersonality[personality] ?: baseRules
+            val ctx = ConversationContext(message, dialog, rules, random, clock(), aiAvailable() && aiResponder != null) { text, context ->
+                answerDatabase?.searchAnswers(text, context).orEmpty()
+            }
+            var reason = ""
+            val raw = rwLock.read { pipeline.run(ctx) } ?: run {
+                reason = "в базе нет ответа"
+                answerUnknown(ctx).also { if (it?.kind == ReplyKind.FALLBACK) reason += ", ИИ не ответил" }
+            } ?: return null
+            val reply = ResponsePostProcessor.process(raw, ctx)
+            if (reply.text.isEmpty() && reply.attachments.isEmpty()) return null
 
-            // В базе ответа нет: спрашиваем ИИ (без блокировки — запрос может идти до минуты)
-            val aiAnswer = aiResponder?.invoke(message)
-            if (isUnansweredLogEnabled()) unanswered.record(message.text, suggestion = aiAnswer.orEmpty())
-            if (aiAnswer != null) return BotResponse(aiAnswer)
-
-            val fallback = getFallbackResponse() ?: return null
-            return prepareResponse(SearchResult(AnswerElement(id = -1, answerText = fallback.text, answerAttachments = fallback.attachments)), message)
+            dialog.addTurn(message.text, reply.text, reply.processor)
+            if (reply.result != null) log("💬 Выбран ответ ID:${reply.result.answer.id} (Исп: ${reply.result.answer.usageCount})")
+            debugListener?.invoke(debugOf(ctx, reply, reason).copy(mood = if (autoMood()) Mood.describe(dialog.mood()) else "", personality = personality))
+            return BotResponse(reply.text, reply.attachments)
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка процесса", e)
             return null
         }
     }
 
+    /** Ответа нет ни в базе, ни у разговорных обработчиков: журнал, ИИ, запасная фраза. */
+    private fun answerUnknown(ctx: ConversationContext): Reply? {
+        // Без блокировки базы — запрос к ИИ может идти до минуты
+        val aiAnswer = aiResponder?.invoke(ctx.message, ctx.dialog.recentTurns(AI_HISTORY_TURNS))
+        if (aiAnswer != null) {
+            if (isUnansweredLogEnabled()) unanswered.record(ctx.message.text, suggestion = aiAnswer)
+            return Reply(aiAnswer, ReplyKind.AI, "ИИ")
+        }
+        // ИИ не ответил — неуверенный ответ базы лучше запасной фразы
+        if (ctx.deferred.isNotEmpty()) {
+            rwLock.read { responder.answer(ctx, ctx.deferred, "база: по смыслу (ИИ не ответил)") }?.let { return it }
+        }
+        if (isUnansweredLogEnabled()) unanswered.record(ctx.message.text)
+        val fallback = getFallbackResponse() ?: return null
+        return Reply(Placeholders.apply(fallback.text, ctx), ReplyKind.FALLBACK, "запасной ответ", fallback.attachments)
+    }
+
+    private fun debugOf(ctx: ConversationContext, reply: Reply, reason: String) = BrainDebug(
+        message = ctx.text,
+        processor = reply.processor,
+        kind = reply.kind,
+        tier = reply.result?.tier,
+        score = reply.result?.score,
+        context = ctx.context,
+        candidates = AnswerSelector.selectionPool(ctx.search).take(3).ifEmpty { ctx.search.take(3) },
+        tried = ctx.tried.toList(),
+        reason = reason
+    )
+
     private inline fun <T> ReentrantReadWriteLock.read(block: () -> T): T {
         readLock().lock()
         try { return block() } finally { readLock().unlock() }
-    }
-
-    private fun findAnswerSmart(message: BotMessage): SearchResult? {
-        if (answerDatabase == null) return null
-
-        val userId = message.authorId
-        val history = getUserHistory(userId)
-        val userContext = history.getContext()
-
-        val candidates = answerDatabase.searchAnswers(message.text, userContext)
-        if (candidates.isEmpty()) return null
-
-        val freshCandidates = mutableListOf<SearchResult>()
-        for (sr in candidates) {
-            val candidate = sr.answer
-            val limit = candidate.repetitionLimit
-            if (limit > 0 && history.getRepetitionCount(candidate.id) >= limit) {
-                continue
-            }
-
-            if (!history.wasResponseGiven(message.text, candidate.answerText)) {
-                freshCandidates.add(sr)
-            }
-        }
-
-        if (freshCandidates.isEmpty()) {
-            for (sr in candidates) {
-                val candidate = sr.answer
-                val limit = candidate.repetitionLimit
-                if (limit <= 0 || history.getRepetitionCount(candidate.id) < limit) {
-                    freshCandidates.add(sr)
-                }
-            }
-        }
-
-        if (freshCandidates.isEmpty()) return null
-
-        val chosen = selectionPool(freshCandidates).random()
-        val chosenElement = chosen.answer
-
-        answerDatabase.recordUsage(chosenElement)
-        history.addResponse(chosenElement.id, message.text, chosenElement.answerText)
-        history.setContext(chosenElement.resultContext)
-
-        log("💬 Выбран ответ ID:${chosenElement.id} (Исп: ${chosenElement.usageCount})")
-        return chosen
-    }
-
-    private fun getUserHistory(userId: String): UserResponseHistory {
-        synchronized(userHistories) {
-            var history = userHistories[userId]
-            if (history == null) {
-                history = UserResponseHistory()
-                userHistories[userId] = history
-            }
-            return history
-        }
     }
 
     private fun getFallbackResponse(): BotResponse? {
         try {
             if (SettingsManager.isFallbackSilenceEnabled) return null
 
-            if (SettingsManager.isRandomFallbackEnabled && kotlin.random.Random.nextDouble() > 0.7 && answerDatabase != null) {
+            if (SettingsManager.isRandomFallbackEnabled && random.nextDouble() > 0.7 && answerDatabase != null) {
                 val randomElement = answerDatabase.getRandomAnswer()
                 if (randomElement != null) return BotResponse(randomElement.answerText, randomElement.answerAttachments)
             }
@@ -159,45 +227,7 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
             log("fallback.txt пуст или не найден — отвечаю стандартной фразой")
             return BotResponse("Извините, я не знаю, что ответить.", emptyList())
         }
-        val text = list.random()
-        return BotResponse(text, emptyList())
-    }
-
-    private fun prepareResponse(sr: SearchResult?, originalMessage: BotMessage): BotResponse? {
-        if (sr?.answer == null) return null
-
-        val element = sr.answer
-        val responseText = replacePlaceholders(element.answerText, originalMessage, sr)
-
-        return BotResponse.Builder()
-            .text(responseText)
-            .addAttachments(element.answerAttachments)
-            .build()
-    }
-
-    private fun replacePlaceholders(text: String?, message: BotMessage, sr: SearchResult?): String {
-        var result = text ?: ""
-        val now = System.currentTimeMillis()
-        val currentDate = Date(now)
-
-        val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
-        val dateFmt = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
-
-        if (sr != null && sr.hasGroups()) {
-            val groups = sr.capturedGroups
-            for (i in 1 until groups.size) {
-                result = result.replace("{$i}", groups[i])
-            }
-        }
-
-        result = result.replace("{name}", message.authorName.ifEmpty { "Пользователь" })
-            .replace("{user_id}", message.authorId)
-            .replace("{time}", timeFmt.format(currentDate))
-            .replace("{date}", dateFmt.format(currentDate))
-            .replace("{last_msg}", message.text)
-            .replace("{random}", (0..100).random().toString())
-
-        return result
+        return BotResponse(list.random(random), emptyList())
     }
 
     /** Сохраняет на диск счётчики использования и журнал «Не знаю ответа», если они менялись. */
@@ -212,7 +242,7 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
             var success = false
             if (answerDatabase != null) {
                 success = answerDatabase.reloadFromFile()
-                loadFallbacks()
+                loadFiles()
                 // Вопросы, на которые теперь есть ответ, из журнала убираем
                 val pruned = unanswered.prune { answerDatabase.searchAnswers(it, "").isNotEmpty() }
                 if (pruned > 0) log("Из журнала «Не знаю ответа» убрано: $pruned")
@@ -252,78 +282,9 @@ class BotBrain(val answerDatabase: AnswerDatabase?) {
         saveStats()
     }
 
-    private class UserResponseHistory {
-        private val questionToResponses = object : LinkedHashMap<String, MutableList<String>>(50 + 1, 0.75f, true) {
-            override fun removeEldestEntry(eldest: Map.Entry<String, MutableList<String>>): Boolean {
-                return size > 50
-            }
-        }
-
-        private val answerIdWeights = mutableMapOf<Long, Int>()
-        private var currentContext = ""
-        private var contextTimestamp: Long = 0
-
-        @Synchronized
-        fun addResponse(answerId: Long, question: String, response: String) {
-            answerIdWeights[answerId] = getRepetitionCount(answerId) + 1
-
-            val qKey = question.lowercase(Locale.getDefault()).trim()
-            val list = questionToResponses.getOrPut(qKey) { mutableListOf() }
-
-            list.add(response)
-            if (list.size > MAX_HISTORY_SIZE) {
-                list.removeAt(0)
-            }
-        }
-
-        @Synchronized
-        fun wasResponseGiven(question: String, response: String): Boolean {
-            val responses = questionToResponses[question.lowercase(Locale.getDefault()).trim()]
-            return responses?.contains(response) == true
-        }
-
-        @Synchronized
-        fun getRepetitionCount(answerId: Long): Int {
-            return answerIdWeights[answerId] ?: 0
-        }
-
-        @Synchronized
-        fun getContext(): String {
-            if (System.currentTimeMillis() - contextTimestamp > CONTEXT_TTL) currentContext = ""
-            return currentContext
-        }
-
-        @Synchronized
-        fun setContext(context: String?) {
-            this.currentContext = context ?: ""
-            this.contextTimestamp = System.currentTimeMillis()
-        }
-
-        companion object {
-            private const val CONTEXT_TTL = 30 * 60 * 1000L
-            private const val MAX_HISTORY_SIZE = 5
-        }
-    }
-
     companion object {
         private const val TAG = "BotBrain"
-        private const val MAX_USERS_HISTORY = 1000
-        /** Ответы с оценкой не ниже 90% от лучшей считаются равноценными. */
-        internal const val NEAR_TIE = 0.9f
-        /** Уровни 0–3 — точное совпадение и regex: все варианты равноправны (команда с 10 картинками). */
-        private const val LAST_EXACT_TIER = 3
-
-        /**
-         * Из чего бот случайно выбирает ответ: лучший уровень совпадения и почти равные по оценке.
-         * Для точных совпадений — все варианты, для совпадений по смыслу — не больше трёх лучших.
-         */
-        internal fun selectionPool(candidates: List<SearchResult>): List<SearchResult> {
-            if (candidates.isEmpty()) return emptyList()
-            val bestTier = candidates.minOf { it.tier }
-            val best = candidates.filter { it.tier == bestTier }
-            val topScore = best.maxOf { it.score }
-            val pool = best.filter { it.score >= topScore * NEAR_TIE }
-            return if (bestTier <= LAST_EXACT_TIER) pool else pool.take(3)
-        }
+        /** Сколько последних обменов репликами видит ИИ. */
+        private const val AI_HISTORY_TURNS = 3
     }
 }

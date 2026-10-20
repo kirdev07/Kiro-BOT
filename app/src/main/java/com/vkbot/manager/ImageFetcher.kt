@@ -4,13 +4,13 @@ import java.net.URL
 import java.net.URLDecoder
 
 /**
- * Ссылка → картинка, готовая к отправке в VK/Telegram.
+ * Ссылка → картинка, готовая к отправке в Telegram.
  *
  * Понимает: прямые ссылки на картинки (тип — по содержимому, даже если сайт говорит «просто файл»),
  * страницы сайтов (берётся картинка-превью og:image / twitter:image), пины Pinterest,
  * ссылки из поиска картинок Яндекса/Google/Bing. Видео не скачивает — они уходят ссылкой.
  *
- * @param convert перекодирует форматы, которые VK/Telegram могут не принять (WebP, AVIF, HEIC…), в JPEG
+ * @param convert перекодирует форматы, которые Telegram может не принять (WebP, AVIF, HEIC…), в JPEG
  */
 class ImageFetcher(
     private val pinterest: PinterestResolver = PinterestResolver(),

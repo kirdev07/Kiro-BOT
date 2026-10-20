@@ -6,199 +6,310 @@
     android:background="@color/bg_main"
     android:fillViewport="true">
 
-<LinearLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="top">
-
-    <!-- Header Section -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="24dp">
-        
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-            
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/app_name"
-                android:textSize="28sp"
-                android:textColor="@color/white"
-                android:fontFamily="sans-serif-black" />
-                
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/home_subtitle"
-                android:textSize="14sp"
-                android:textColor="@color/text_medium"
-                android:fontFamily="sans-serif-medium"
-                android:layout_marginTop="2dp" />
-        </LinearLayout>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_info"
-            style="@style/Widget.Material3.Button.IconButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            app:icon="@drawable/ic_info"
-            app:iconTint="@color/text_medium" />
-    </LinearLayout>
-
-    <!-- Секция статусов ботов (ТЕПЕРЬ СВЕРХУ) -->
-    <LinearLayout
-        android:id="@+id/ll_bots_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="16dp" />
+        android:padding="16dp">
 
-    <!-- Подсказка если ботов нет -->
-    <TextView
-        android:id="@+id/tv_no_bots_hint"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Нет добавленных ботов. Перейдите во вкладку «Боты» чтобы добавить."
-        android:textColor="@color/text_medium"
-        android:textSize="13sp"
-        android:visibility="gone"
-        android:layout_marginBottom="16dp" />
-
-    <!-- Кнопка ЗАПУСК / ОСТАНОВКА -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_start_stop"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:text="ЗАПУСТИТЬ БОТА"
-        android:textSize="14sp"
-        android:textColor="@color/black"
-        android:fontFamily="sans-serif-black"
-        android:letterSpacing="0.05"
-        app:cornerRadius="16dp"
-        app:backgroundTint="@color/white"
-        app:icon="@drawable/ic_play"
-        app:iconTint="@color/black"
-        app:iconGravity="textStart"
-        android:layout_marginBottom="24dp"
-        android:elevation="0dp"
-        app:strokeWidth="1dp"
-        app:strokeColor="#FFFFFF" />
-
-    <!-- Скрывающийся блок "Инфо" -->
-    <LinearLayout
-        android:id="@+id/layout_info"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-        <TextView
+        <!-- Бот: статус, счётчики, запуск -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_bot"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="О возможностях бота"
-            android:textColor="@color/white"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="12dp" />
+            android:layout_marginBottom="12dp"
+            app:cardBackgroundColor="@color/bg_card"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/bg_card_highlight"
+            app:strokeWidth="1dp">
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/view_status_dot"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_marginEnd="10dp"
+                        android:background="@drawable/status_dot" />
+
+                    <TextView
+                        android:id="@+id/tv_status"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="sans-serif-black"
+                        android:text="@string/home_status_stopped"
+                        android:textColor="@color/white"
+                        android:textSize="24sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_info"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:contentDescription="@string/about_bot"
+                        app:icon="@drawable/ic_info"
+                        app:iconTint="@color/text_medium" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_bot_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginStart="22dp"
+                    android:textColor="@color/text_medium"
+                    android:textSize="14sp" />
+
+                <!-- Счётчики -->
+                <LinearLayout
+                    android:id="@+id/ll_stats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
+
+                    <LinearLayout style="@style/HomeStat">
+                        <TextView android:id="@+id/tv_processed" style="@style/HomeStatValue" />
+                        <TextView style="@style/HomeStatLabel" android:text="@string/home_stat_processed" />
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/HomeStat">
+                        <TextView android:id="@+id/tv_answered" style="@style/HomeStatValue" />
+                        <TextView style="@style/HomeStatLabel" android:text="@string/home_stat_answered" />
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/HomeStat">
+                        <TextView android:id="@+id/tv_uptime" style="@style/HomeStatValue" />
+                        <TextView style="@style/HomeStatLabel" android:text="@string/home_stat_uptime" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_start_stop"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="20dp"
+                    android:fontFamily="sans-serif-black"
+                    android:letterSpacing="0.05"
+                    android:text="@string/start_bot_btn"
+                    android:textColor="@color/black"
+                    android:textSize="14sp"
+                    app:backgroundTint="@color/white"
+                    app:cornerRadius="16dp"
+                    app:icon="@drawable/ic_play"
+                    app:iconGravity="textStart"
+                    app:iconTint="@color/black" />
+
+                <LinearLayout
+                    android:id="@+id/ll_bot_actions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_edit_bot"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/action_edit"
+                        android:textColor="@color/white"
+                        app:icon="@drawable/ic_edit"
+                        app:iconTint="@color/white" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_delete_bot"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/delete"
+                        android:textColor="@color/text_medium"
+                        app:icon="@drawable/ic_delete"
+                        app:iconTint="@color/text_medium" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Бота нет -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_no_bot"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/bg_card"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-black"
+                    android:text="@string/home_no_bot_title"
+                    android:textColor="@color/white"
+                    android:textSize="20sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/home_no_bot_text"
+                    android:textColor="@color/text_medium"
+                    android:textSize="14sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_add_bot"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="16dp"
+                    android:fontFamily="sans-serif-black"
+                    android:text="@string/home_add_bot"
+                    android:textColor="@color/black"
+                    app:backgroundTint="@color/white"
+                    app:cornerRadius="16dp"
+                    app:icon="@drawable/ic_add"
+                    app:iconGravity="textStart"
+                    app:iconTint="@color/black" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Мозг бота -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:cardBackgroundColor="@color/bg_card"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="20dp"
+                android:paddingVertical="8dp">
+
+                <TextView
+                    android:id="@+id/row_ai"
+                    style="@style/HomeRow"
+                    app:drawableStartCompat="@drawable/ic_api" />
+
+                <TextView
+                    android:id="@+id/row_personality"
+                    style="@style/HomeRow"
+                    app:drawableStartCompat="@drawable/ic_chat" />
+
+                <TextView
+                    android:id="@+id/row_unanswered"
+                    style="@style/HomeRow"
+                    app:drawableStartCompat="@drawable/ic_list" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Последние сообщения -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:cardBackgroundColor="@color/bg_card"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="@string/home_recent_title"
+                    android:textColor="@color/white"
+                    android:textSize="16sp" />
+
+                <LinearLayout
+                    android:id="@+id/ll_recent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/tv_recent_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/home_recent_empty"
+                    android:textColor="@color/text_low"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- «О боте» (кнопка ⓘ) -->
         <LinearLayout
+            android:id="@+id/layout_info"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:background="@drawable/status_chip_background"
             android:backgroundTint="#1AFFFFFF"
+            android:orientation="vertical"
             android:padding="20dp"
-            app:cornerRadius="16dp"
-            android:layout_marginBottom="24dp">
+            android:visibility="gone">
 
-            <!-- Purpose -->
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="20dp">
-                
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_play"
-                    app:tint="@color/violet_accent"
-                    android:layout_marginEnd="12dp"
-                    android:layout_marginTop="2dp" />
+                android:layout_marginBottom="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/home_why_title"
+                android:textColor="@color/white"
+                android:textSize="15sp" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-                    
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Зачем он нужен?"
-                        android:textColor="@color/white"
-                        android:textSize="15sp"
-                        android:fontFamily="sans-serif-bold"
-                        android:layout_marginBottom="4dp"/>
-                        
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/home_why_text"
-                        android:textColor="@color/violet_accent"
-                        android:textSize="13sp"
-                        android:lineSpacingExtra="2dp"/>
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Capabilities -->
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
-                
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_api"
-                    app:tint="@color/violet_accent"
-                    android:layout_marginEnd="12dp"
-                    android:layout_marginTop="2dp" />
+                android:layout_marginBottom="16dp"
+                android:lineSpacingExtra="2dp"
+                android:text="@string/home_why_text"
+                android:textColor="@color/violet_accent"
+                android:textSize="13sp" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-                    
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Возможности"
-                        android:textColor="@color/white"
-                        android:textSize="15sp"
-                        android:fontFamily="sans-serif-bold"
-                        android:layout_marginBottom="4dp"/>
-                        
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/home_features_text"
-                        android:textColor="@color/violet_accent"
-                        android:textSize="13sp"
-                        android:lineSpacingExtra="2dp"/>
-                </LinearLayout>
-            </LinearLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/home_features_title"
+                android:textColor="@color/white"
+                android:textSize="15sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="2dp"
+                android:text="@string/home_features_text"
+                android:textColor="@color/violet_accent"
+                android:textSize="13sp" />
         </LinearLayout>
     </LinearLayout>
-
-</LinearLayout>
 </ScrollView>
-

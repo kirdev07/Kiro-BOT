@@ -2,7 +2,7 @@ package com.vkbot.manager.ai
 
 /**
  * ИИ-помощник: отвечает, когда в базе нет ответа.
- * Держит короткую историю разговора с каждым собеседником, соблюдает дневной лимит
+ * Получает последние реплики разговора (в том числе ответы базы), соблюдает дневной лимит
  * и приводит ответ к виду реплики в мессенджере.
  */
 class AiAssistant(
@@ -17,16 +17,16 @@ class AiAssistant(
         fun increment()
     }
 
-    private val histories = object : LinkedHashMap<String, ArrayDeque<AiTurn>>(64, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<String, ArrayDeque<AiTurn>>) = size > MAX_USERS
-    }
 
     /** Клиент пересоздаётся только при смене настроек (у Claude он тяжёлый). */
     private var cachedClient: Pair<AiConfig, AiClient>? = null
     private var limitLoggedFor = -1
 
-    /** @return ответ ИИ или null (выключен, не настроен, лимит, ошибка — причина в логе). */
-    fun reply(userId: String, userName: String, text: String, isGroupChat: Boolean): String? {
+    /**
+     * @param history последние реплики разговора (от старых к новым), без текущего сообщения
+     * @return ответ ИИ или null (выключен, не настроен, лимит, ошибка — причина в логе)
+     */
+    fun reply(userName: String, text: String, isGroupChat: Boolean, history: List<AiTurn> = emptyList()): String? {
         val c = config()
         if (!c.enabled || !c.isComplete || text.isBlank()) return null
         if (isGroupChat && !c.inChats) return null
@@ -37,13 +37,12 @@ class AiAssistant(
             return null
         }
 
-        val history = synchronized(histories) { histories.getOrPut(userId) { ArrayDeque() }.toList() }
-        val turns = history + AiTurn(true, text.take(MAX_INPUT_CHARS))
+        val turns = history.takeLast(MAX_HISTORY_TURNS).map { it.copy(text = it.text.take(MAX_INPUT_CHARS)) } +
+            AiTurn(true, text.take(MAX_INPUT_CHARS))
         return try {
             val answer = clean(client(c).reply(systemPrompt(c, userName), turns, maxTokens(c)), c.maxChars)
             if (answer.isEmpty()) throw AiException("пустой ответ")
             usage.increment()
-            remember(userId, AiTurn(true, text.take(MAX_INPUT_CHARS)), AiTurn(false, answer))
             answer
         } catch (e: Exception) {
             onLog("ИИ не ответил: ${e.message}")
@@ -61,14 +60,8 @@ class AiAssistant(
         cachedClient?.takeIf { it.first == c }?.second ?: clientFactory(c).also { cachedClient = c to it }
     }
 
-    private fun remember(userId: String, question: AiTurn, answer: AiTurn) = synchronized(histories) {
-        val h = histories.getOrPut(userId) { ArrayDeque() }
-        h.addLast(question); h.addLast(answer)
-        while (h.size > MAX_HISTORY_TURNS) h.removeFirst()
-    }
 
     companion object {
-        private const val MAX_USERS = 200
         /** 3 последних обмена репликами */
         private const val MAX_HISTORY_TURNS = 6
         private const val MAX_INPUT_CHARS = 1000

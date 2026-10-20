@@ -35,10 +35,6 @@ object SettingsManager {
         get() = prefs.getBoolean("pref_fallback_silence_enabled", false)
         set(value) = prefs.edit().putBoolean("pref_fallback_silence_enabled", value).apply()
 
-    var isMarkAsReadEnabled: Boolean
-        get() = prefs.getBoolean("pref_mark_as_read_enabled", false)
-        set(value) = prefs.edit().putBoolean("pref_mark_as_read_enabled", value).apply()
-
     var isChatsEnabled: Boolean
         get() = prefs.getBoolean("pref_chats_enabled", false)
         set(value) = prefs.edit().putBoolean("pref_chats_enabled", value).apply()
@@ -46,13 +42,28 @@ object SettingsManager {
     var chatPrefix: String
         get() = prefs.getString("pref_chat_prefix", "Бот,") ?: "Бот,"
         set(value) = prefs.edit().putString("pref_chat_prefix", value).apply()
-        
+
     /** Записывать ли вопросы без ответа в журнал «Не знаю ответа». */
     var isUnansweredLogEnabled: Boolean
         get() = prefs.getBoolean("pref_unanswered_log_enabled", true)
         set(value) = prefs.edit().putBoolean("pref_unanswered_log_enabled", value).apply()
 
-    /** ID владельцев (VK или Telegram) через запятую — только им доступны команды «!запомни», «!забудь». */
+    /** Характер разговорных фраз: "" — обычный, warm, cheeky, polite. */
+    var personality: String
+        get() = prefs.getString("pref_personality", "") ?: ""
+        set(value) = prefs.edit().putString("pref_personality", value).apply()
+
+    /** Менять характер фраз по настроению бота к собеседнику. */
+    var isAutoMood: Boolean
+        get() = prefs.getBoolean("pref_auto_mood", false)
+        set(value) = prefs.edit().putBoolean("pref_auto_mood", value).apply()
+
+    /** Отладка мозга: писать в «Логи», почему бот выбрал ответ (собеседнику не отправляется). */
+    var isBrainDebugEnabled: Boolean
+        get() = prefs.getBoolean("pref_brain_debug", false)
+        set(value) = prefs.edit().putBoolean("pref_brain_debug", value).apply()
+
+    /** ID владельцев в Telegram через запятую — только им доступны команды «!запомни», «!забудь». */
     var ownerIds: String
         get() = prefs.getString("pref_owner_ids", "") ?: ""
         set(value) = prefs.edit().putString("pref_owner_ids", value).apply()

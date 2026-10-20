@@ -197,11 +197,16 @@ class AnswerDatabase private constructor(
 
             val candidates = LinkedHashSet<AnswerElement>()
             for (stem in allStems) {
-                if (stem !in STOP_WORDS) keywordIndex[stem]?.let { candidates.addAll(it) }
-            }
-            // Маленькая база: полный перебор, чтобы находить слова с опечатками
-            if (candidates.isEmpty() && exactGeneral.isEmpty() && answers.size < 2000) {
-                candidates.addAll(answers.values)
+                if (stem in STOP_WORDS) continue
+                val direct = keywordIndex[stem]
+                if (direct != null) {
+                    candidates.addAll(direct)
+                } else if (stem.length >= MIN_FUZZY_LENGTH) {
+                    // Слова нет в базе — ищем похожие («превет» → «привет»), на базе любого размера
+                    for ((known, list) in keywordIndex) {
+                        if (isFuzzyWordMatch(stem, known)) candidates.addAll(list)
+                    }
+                }
             }
 
             for (element in candidates) {
@@ -261,10 +266,16 @@ class AnswerDatabase private constructor(
     private fun scoreSegment(info: QuestionInfo, segment: Segment, minQuestionCoverage: Double): Double {
         if (segment.stems.isEmpty() || info.weight <= 0.0) return 0.0
         var matchedQuestionWeight = 0.0
+        var matchedContent = false
         for (qs in info.stems) {
             val found = qs in segment.stems || segment.stems.any { isFuzzyWordMatch(qs, it) }
-            if (found) matchedQuestionWeight += weightOf(qs)
+            if (found) {
+                matchedQuestionWeight += weightOf(qs)
+                if (qs !in QUESTION_WORDS && qs !in STOP_WORDS) matchedContent = true
+            }
         }
+        // Совпало только «как» / «что» — это не тот же вопрос («какая столица» ≠ «как дела»)
+        if (!matchedContent) return 0.0
         val qCoverage = matchedQuestionWeight / info.weight
         if (qCoverage < minQuestionCoverage) return 0.0
 
@@ -339,7 +350,9 @@ class AnswerDatabase private constructor(
         private val STOP_WORDS = listOf(
             "а", "и", "но", "или", "да", "же", "ли", "бы", "ну", "вот", "то",
             "в", "во", "на", "с", "со", "к", "ко", "у", "о", "об", "от", "до", "по", "за", "из", "для", "про", "при",
-            "очень", "так", "просто", "вообще", "прям", "прямо", "еще", "уже", "тоже", "типа", "короче", "слушай"
+            "очень", "так", "просто", "вообще", "прям", "прямо", "еще", "уже", "тоже", "типа", "короче", "слушай",
+            // Указатели без смысла сами по себе: «а какое там население?» — не вопрос «там»
+            "там", "тут", "здесь", "туда", "сюда", "это", "этот", "эта", "эти"
         ).map { TextAnalyzer.stem(it) }.toSet()
 
         /** Вопросительные слова: вопрос из базы с ними не подходит к сообщению-утверждению. */
@@ -357,9 +370,12 @@ class AnswerDatabase private constructor(
         private const val MIN_MESSAGE_COVERAGE = 0.1
         private const val SHORT_MESSAGE_WORDS = 3
 
+        /** Короче — опечатки не ищем: «кот» и «кит» — разные слова. */
+        private const val MIN_FUZZY_LENGTH = 5
+
         /** Опечатка в основе слова: первая буква совпадает, 1 ошибка (2 — для длинных слов). */
         private fun isFuzzyWordMatch(w1: String, w2: String): Boolean {
-            if (w1.length < 5 || w2.length < 5 || w1[0] != w2[0]) return false
+            if (w1.length < MIN_FUZZY_LENGTH || w2.length < MIN_FUZZY_LENGTH || w1[0] != w2[0]) return false
             val maxDist = if (min(w1.length, w2.length) >= 8) 2 else 1
             if (kotlin.math.abs(w1.length - w2.length) > maxDist) return false
             return calculateLevenshteinDistance(w1, w2) <= maxDist

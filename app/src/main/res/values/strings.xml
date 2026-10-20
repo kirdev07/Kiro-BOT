@@ -16,41 +16,44 @@
     <string name="instruction_title">Инструкция</string>
     <string name="instruction_text"><![CDATA[
         <b>1. Добавьте бота</b><br>
-        Раздел <b>Боты</b> → «+» → выберите <b>VK</b> или <b>Telegram</b>.<br>
-        • <b>VK</b>: токен сообщества (Управление → Работа с API), права: сообщения, фотографии, документы. Включите Long Poll API.<br>
-        • <b>Telegram</b>: напишите @BotFather → /newbot → скопируйте токен. Для групп: /setprivacy → Disable.<br><br>
+        Напишите @BotFather в Telegram → /newbot → скопируйте токен. На главной — <b>Добавить бота</b> → вставьте токен. Для групп: /setprivacy → Disable.<br><br>
         <b>2. Наполните базу</b><br>
-        Раздел <b>Редактор ответов</b>: вопрос → ответ. Можно писать просто ключевые слова — бот понимает формы слов, опечатки и длинные сообщения.<br>
+        Раздел <b>База</b> (внизу экрана): вопрос → ответ. Можно писать просто ключевые слова — бот понимает формы слов, опечатки и длинные сообщения.<br>
         • Несколько строк с одним вопросом — бот выбирает ответ случайно.<br>
-        • <b>Команды с картинками</b>: в поле «Вложения» — ссылка на картинку или GIF: прямая, страница сайта, пин Pinterest или результат поиска картинок Яндекса/Google (работает и в VK, и в Telegram). Видео и фото VK в Telegram приходят ссылкой.<br>
+        • <b>Команды с картинками</b>: в поле «Вложения» — ссылка на картинку или GIF: прямая, страница сайта, пин Pinterest или результат поиска картинок Яндекса/Google — в чате сразу картинка. Видео приходят ссылкой с превью.<br>
         • <b>Синонимы и сленг</b>: файл kirdev_base/synonyms.txt, строка вида «что = че, чо, шо».<br>
         • <b>Не знаю ответа</b>: кнопка-список в шапке редактора — вопросы, на которые бот не нашёл ответа, со счётчиком. Нажмите на вопрос, чтобы добавить ответ.<br><br>
         <b>Обучение из чата</b><br>
         Напишите боту <b>!id</b>, впишите свой ID в Настройки → «Управление из чата». Теперь только вам доступны: <b>!запомни вопрос = ответ</b>, <b>!забудь вопрос</b>, <b>!незнаю</b>, <b>!команды</b>.<br><br>
         <b>3. Запустите</b><br>
-        Включите бота на карточке и нажмите <b>Запустить бота</b> на главном экране. Что происходит — видно в разделе <b>Логи</b>.<br><br>
-        <b>Беседы и группы</b>: включите в Настройках. Бот отвечает на префикс (по умолчанию «Бот,»), в Telegram — ещё на команды /…, упоминание и ответы на свои сообщения.<br><br>
+        Нажмите <b>Запустить бота</b> на главном экране — бот сразу начнёт отвечать. Что происходит — видно в разделе <b>Логи</b>.<br><br>
+        <b>Группы</b>: включите в Настройках → «Группы». Бот отвечает на обращение (по умолчанию «Бот,»), команды /…, упоминание и ответы на свои сообщения.<br><br>
         <i>Важно:</i> разрешите приложению работу без ограничений батареи, иначе система может остановить бота в фоне.
     ]]></string>
 
     <string name="about_bot">О боте</string>
     <string name="bot_description_title">О боте</string>
     <string name="bot_description_text"><![CDATA[
-        <b>Kiro Bot %1$s</b> — автоответчик для VK и Telegram на Android: база ответов, команды с картинками и видео, защита от спама. Работает в фоне 24/7.<br><br>
-        <b>Политика конфиденциальности</b><br>
-        • Приложение <b>не собирает и не передаёт разработчику</b> никаких данных: нет аналитики, рекламы и сторонних сервисов.<br>
-        • На устройстве хранятся: токен бота (<b>зашифрован</b> ключом Android Keystore), настройки, чёрный список, журнал работы (до 1 МБ, содержит имена собеседников), журнал «Не знаю ответа» (тексты вопросов без имён и ID, до 300 записей) и база ответов. База лежит в папке kirdev_base в памяти телефона — её могут прочитать приложения с доступом ко всем файлам.<br>
-        • Данные уходят только туда, где работает ваш бот: в <b>VK API</b> (api.vk.com) или <b>Telegram Bot API</b> (api.telegram.org) — сообщения, ответы и служебные запросы по вашему токену.<br>
-        • Если в ответах есть ссылки на картинки, бот скачивает их с указанных вами сайтов и загружает в VK или Telegram.<br>
-        • <b>ИИ-помощник</b> (выключен по умолчанию): если вы его включите, сообщения, на которые в базе нет ответа, вместе с именем собеседника и последними репликами разговора отправляются выбранному вами сервису ИИ (Anthropic, Google, Яндекс или указанный вами адрес) по вашему ключу. Ключ хранится на устройстве в зашифрованном виде.<br>
-        • Журналом можно поделиться только вручную кнопкой «Поделиться».<br>
-        • Чтобы удалить все данные: удалите приложение и папку kirdev_base.<br>
-        • Вы отвечаете за соблюдение правил VK и Telegram и за содержимое ответов бота.<br><br>
+        <b>Kiro Bot %1$s</b> — автоответчик для Telegram на Android: база ответов, команды с картинками и видео, ИИ-помощник, защита от спама. Работает в фоне 24/7.<br><br>
+        Связаться с разработчиком: сайт <b>kirdev-studio.vercel.app</b> (кнопка «Сайт» ниже).<br><br>
         <b>Лицензия и ограничения использования:</b><br>
         - Данное приложение предназначено <b>исключительно для личного использования</b>.<br>
         - <b>Категорически запрещается</b> модифицировать исходный код или дизайн приложения.<br>
         - <b>Запрещается</b> присваивать авторство данного приложения себе или выдавать его за свой собственный продукт.<br>
         - Любые изменения, декомпиляция или распространение изменённых версий запрещены.
+    ]]></string>
+
+    <string name="privacy_title">Политика конфиденциальности</string>
+    <string name="privacy_text"><![CDATA[
+        • Приложение <b>не собирает и не передаёт разработчику</b> никаких данных: нет аналитики, рекламы и сторонних сервисов.<br>
+        • На устройстве хранятся: токен бота (<b>зашифрован</b> ключом Android Keystore), настройки, чёрный список, журнал работы (до 1 МБ, содержит имена собеседников), журнал «Не знаю ответа» (тексты вопросов без имён и ID, до 300 записей), 5 последних сообщений с ответами для главного экрана (с именами) и база ответов. База лежит в папке kirdev_base в памяти телефона — её могут прочитать приложения с доступом ко всем файлам.<br>
+        • Данные уходят только туда, где работает ваш бот: в <b>Telegram Bot API</b> (api.telegram.org) — сообщения, ответы и служебные запросы по вашему токену.<br>
+        • Если в ответах есть ссылки на картинки, бот скачивает их с указанных вами сайтов и загружает в Telegram.<br>
+        • <b>ИИ-помощник</b> (выключен по умолчанию): если вы его включите, сообщения, на которые в базе нет ответа, вместе с именем собеседника и последними репликами разговора отправляются выбранному вами сервису ИИ (Anthropic, Google, Яндекс или указанный вами адрес) по вашему ключу. Ключ хранится на устройстве в зашифрованном виде.<br>
+        • Журналом можно поделиться только вручную кнопкой «Поделиться».<br>
+        • Чтобы удалить все данные: удалите приложение и папку kirdev_base.<br>
+        • Вы отвечаете за соблюдение правил Telegram и за содержимое ответов бота.<br>
+        • Вопросы о данных и удалении — через сайт <b>kirdev-studio.vercel.app</b> (кнопка «Сайт» ниже).
     ]]></string>
 
     <string name="understood">Понятно</string>
@@ -61,16 +64,10 @@
     <string name="settings">Настройки</string>
 
     <!-- HomeFragment -->
-    <string name="home_subtitle">Бот для VK и Telegram</string>
-    <string name="home_why_text">Бот отвечает круглосуточно, поддерживает актив и создаёт атмосферу живого общения в диалогах, беседах и группах.</string>
-    <string name="home_features_text">• Умная база ответов: понимает длинные сообщения, формы слов, опечатки и сленг.\n• VK и Telegram — на выбор.\n• Команды с картинками, GIF и видео.\n• Защита от спама и чёрный список.\n• Фоновый режим 24/7.</string>
-    <string name="status_disabled">Выключен</string>
-    <string name="status_working">Работает</string>
-    <string name="status_pending">Ожидание...</string>
-    <string name="status_running">Статус: Работает</string>
-    <string name="status_stopped">Статус: Остановлен</string>
+    <string name="home_why_text">Бот отвечает круглосуточно, поддерживает актив и создаёт атмосферу живого общения в личных сообщениях и группах Telegram.</string>
+    <string name="home_features_text">• Умная база ответов: понимает длинные сообщения, формы слов, опечатки и сленг.\n• Команды с картинками, GIF и видео.\n• Защита от спама и чёрный список.\n• Фоновый режим 24/7.</string>
     
-    <string name="no_active_bots_error">Нет активных ботов: добавьте и включите хотя бы одного бота в разделе «Боты».</string>
+    <string name="no_active_bots_error">Сначала добавьте бота: кнопка «Добавить бота» на главной.</string>
     <string name="log_init_start">Инициализация сервиса...</string>
     <string name="start_error_format">Ошибка старта: %s</string>
     <string name="log_start_error_format">Не удалось запустить ботов: %s</string>
@@ -79,19 +76,14 @@
     <string name="start_bot_btn">Запустить Бота</string>
 
     <!-- BotsFragment -->
-    <string name="max_bots_error">Можно добавить только одного бота</string>
     <string name="add_bot_title">Добавление бота</string>
-    <string name="platform_vk">VK</string>
-    <string name="platform_telegram">Telegram</string>
-    <string name="token_hint_vk">Токен сообщества VK</string>
-    <string name="token_help_vk">Сообщество → Управление → Работа с API → Создать ключ (права: сообщения, фото, документы). Включите Long Poll API.</string>
+    <string name="bot_name_hint">Название бота</string>
     <string name="token_hint_telegram">Токен Telegram-бота</string>
     <string name="token_help_telegram">Напишите @BotFather → /newbot → скопируйте токен вида 123456789:AAE… Для групп: /setprivacy → Disable.</string>
     <string name="token_format_error_telegram">Токен Telegram выглядит так: 123456789:AAE… — проверьте</string>
     <string name="add">Добавить</string>
     <string name="save">Сохранить</string>
     <string name="fill_all_fields_error">Заполните все поля</string>
-    <string name="bot_name_exists_error">Бот с таким именем уже существует</string>
     <string name="bot_added_success">Бот добавлен</string>
     <string name="bot_updated_success">Бот обновлен</string>
     <string name="edit_bot_title">Редактирование бота</string>
@@ -99,15 +91,6 @@
     <string name="delete_bot_confirm_format">Удалить бота \"%s\"?</string>
     <string name="delete">Удалить</string>
     <string name="bot_deleted_success">Бот удален</string>
-    <string name="clear_stats_title">Сбросить статистику?</string>
-    <string name="clear_stats_confirm_format">Вы уверены, что хотите обнулить количество ответов у бота \"%s\"?</string>
-    <string name="reset">Сбросить</string>
-    <string name="stats_cleared_success">Статистика обнулена</string>
-    <string name="status_auto_start_on">Активен (Авто-старт)</string>
-    <string name="status_auto_start_off">Выключен</string>
-    <string name="bot_status_changed_format">Бот \"%1$s\" %2$s</string>
-    <string name="bots_counter_format">Добавлено ботов: %d из 1</string>
-    <string name="bot_token_preview_format">%1$s · %2$s</string>
 
     <!-- AnswersEditorFragment -->
     <string name="selected_count_format">Выбрано: %d</string>
@@ -138,6 +121,16 @@
     <!-- SettingsFragment: управление из чата -->
     <string name="owner_title">Обучение</string>
     <string name="unanswered_log_switch">Журнал «Не знаю ответа»</string>
+    <string name="personality_title">Характер фраз</string>
+    <string name="personality_default">Обычный</string>
+    <string name="personality_warm">Тёплый</string>
+    <string name="personality_cheeky">Дерзкий</string>
+    <string name="personality_polite">Вежливый</string>
+    <string name="personality_desc">Как бот реагирует на похвалу и ругань, «да / почему / а ты?» и отвечает в функциях (время, «или», «инфа»). Ответы из вашей базы не меняются. Фразы — в файлах conversation*.txt папки kirdev_base.</string>
+    <string name="auto_mood_switch">Менять характер по настроению</string>
+    <string name="auto_mood_desc">У бота своё настроение к каждому собеседнику: похвала его радует — отвечает тепло, грубость задевает — становится сдержанным, а если обидеть сильно — дерзит. Через 20 минут настроение остывает вдвое. Ручной выбор характера при этом не действует.</string>
+    <string name="brain_debug_switch">Отладка мозга</string>
+    <string name="brain_debug_desc">Писать в «Логи», почему бот ответил именно так: обработчик, уровень и оценка совпадения, контекст, 3 лучших кандидата, причина ухода в ИИ или запасной ответ. Собеседник этого не видит.</string>
     <string name="unanswered_log_desc">Записывать вопросы, на которые в базе нет ответа (кнопка-список в редакторе). Выключите, если журнал не нужен — уже записанное останется, пока не очистите.</string>
     <string name="owner_ids_hint">ID владельца (можно несколько через запятую)</string>
     <string name="owner_desc">Только этим ID бот подчиняется командами:\n!запомни вопрос = ответ — добавить в базу\n!забудь вопрос — удалить из базы\n!незнаю — вопросы, на которые не было ответа\n!команды — список команд\n\nСвой ID узнаете, написав боту !id (работает для всех). Остальным эти команды недоступны — бот их просто игнорирует.</string>
@@ -158,8 +151,8 @@
     <string name="ai_max_chars">Максимум символов в ответе</string>
     <string name="ai_daily_limit">Лимит запросов в день</string>
     <string name="ai_usage_today">Сегодня запросов к ИИ: %1$d из %2$d</string>
-    <string name="ai_in_chats">ИИ в беседах и группах</string>
-    <string name="ai_in_chats_desc">В беседах сообщений много — ИИ может быстро потратить лимит и деньги.</string>
+    <string name="ai_in_chats">ИИ в группах</string>
+    <string name="ai_in_chats_desc">В группах сообщений много — ИИ может быстро потратить лимит и деньги.</string>
     <string name="ai_test">Проверить</string>
     <string name="ai_testing">Проверяю…</string>
     <string name="ai_test_ok_title">ИИ отвечает ✅</string>
@@ -187,14 +180,11 @@
     <string name="unanswered_tooltip">Не знаю ответа</string>
 
     <!-- BlacklistFragment -->
-    <string name="blacklist_user_removed_format">ID %s удален из ЧС</string>
-    <string name="enter_id_error">Введите ссылку или ID</string>
-    <string name="searching">Поиск...</string>
-    <string name="unknown_vk_id">Неизвестный пользователь</string>
-    <string name="user_not_found_error">Пользователь не найден</string>
-    <string name="vk_api_error">Ошибка VK API</string>
-    <string name="no_token_numeric_id_error">Нет токена для поиска по имени. Введите числовой ID.</string>
-    <string name="network_error">Ошибка сети</string>
+    <string name="blacklist_user_removed_format">ID %s убран из чёрного списка</string>
+    <string name="blacklist_undo">Вернуть</string>
+    <string name="blacklist_id_hint">ID пользователя Telegram</string>
+    <string name="blacklist_default_name">Пользователь Telegram</string>
+    <string name="enter_id_error">Введите числовой ID пользователя Telegram</string>
     <string name="user_already_blacklisted_format">Пользователь %s уже в ЧС</string>
     <string name="user_blocked_success_format">%s заблокирован</string>
     <string name="blacklist_title_format">Система защиты (%d)</string>
@@ -209,18 +199,73 @@
     
     <string name="only_attachments">(только вложения)</string>
     <string name="attachments_label_format">Вложения:\n%1$s</string>
-    <string name="attachments_hint">Вложения: ссылки на картинки (сайт, Pinterest, поиск картинок) или фото VK; видео — ссылкой (каждая с новой строки)</string>
+    <string name="attachments_hint">Вложения: ссылки на картинки (сайт, Pinterest, поиск картинок); видео — ссылкой (каждая с новой строки)</string>
     <string name="blacklist_item_format">%1$s (ID: %2$d)</string>
     
     <!-- BotsAdapter Styles & Formatting -->
-    <string name="bot_status_running">● Включен</string>
-    <string name="bot_status_stopped">○ Выключен</string>
-    <string name="processed_messages_format">Обработано: %d</string>
-    <string name="answered_messages_format">Отвечено: %d</string>
-    <string name="uptime_format">Время: %s</string>
-    <string name="uptime_zero">Время: 00:00:00</string>
-    <string name="action_disable">Выключить</string>
-    <string name="action_enable">Включить</string>
-    <string name="token_copied_toast">Токен скопирован</string>
     <string name="log_copied_toast">Лог скопирован</string>
+
+    <!-- Главная (панель управления) и нижняя навигация -->
+    <string name="nav_home">Главная</string>
+    <string name="nav_editor">База</string>
+    <string name="nav_ai">ИИ</string>
+    <string name="nav_logs">Логи</string>
+    <string name="nav_settings">Настройки</string>
+    <string name="home_status_running">Работает</string>
+    <string name="home_status_stopped">Остановлен</string>
+    <string name="home_bot_name_format">%1$s · Telegram</string>
+    <string name="home_stat_processed">Обработано</string>
+    <string name="home_stat_answered">Отвечено</string>
+    <string name="home_stat_uptime">Время работы</string>
+    <string name="action_edit">Изменить</string>
+    <string name="home_no_bot_title">Добавьте бота</string>
+    <string name="home_no_bot_text">Создайте бота у @BotFather в Telegram и вставьте его токен — потом бот запускается одной кнопкой.</string>
+    <string name="home_add_bot">Добавить бота</string>
+    <string name="home_ai_on">ИИ-помощник: %1$s</string>
+    <string name="home_ai_off">ИИ-помощник выключен</string>
+    <string name="home_personality_format">Характер: %1$s</string>
+    <string name="home_personality_auto">Характер: по настроению</string>
+    <string name="home_unanswered_format">Не знаю ответа: %1$d</string>
+    <string name="home_unanswered_off">Журнал «Не знаю ответа» выключен</string>
+    <string name="home_recent_title">Последние сообщения</string>
+    <string name="home_recent_message_format">%1$s · %2$s: %3$s</string>
+    <string name="home_recent_reply_format">→ %1$s</string>
+    <string name="home_recent_empty">Здесь появятся последние сообщения и ответы бота.</string>
+    <string name="home_why_title">Зачем он нужен?</string>
+    <string name="home_features_title">Возможности</string>
+    <string name="menu_instruction">Инструкция</string>
+    <string name="menu_privacy">Политика конфиденциальности</string>
+    <string name="menu_website">Наш сайт — связаться</string>
+    <string name="action_website">Сайт</string>
+    <string name="menu_contact_telegram">Мы в Telegram</string>
+    <string name="settings_blacklist_button">Чёрный список</string>
+
+    <!-- Настройки: разделы -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_section_conversation">Разговор</string>
+    <string name="settings_section_conversation_desc">Характер фраз, настроение, что делать без ответа</string>
+    <string name="settings_section_chats">Группы</string>
+    <string name="settings_section_chats_desc">Работа в группах, обращение к боту</string>
+    <string name="settings_section_protection">Защита</string>
+    <string name="settings_section_protection_desc">Антиспам, автобан, чёрный список</string>
+    <string name="settings_section_learning">Обучение и управление</string>
+    <string name="settings_section_learning_desc">ID владельца, команды из чата, журнал «Не знаю ответа»</string>
+    <string name="settings_section_developer">Для разработчика</string>
+    <string name="settings_section_developer_desc">Отладка мозга</string>
+    <string name="settings_fallback_title">Если ответа нет</string>
+    <string name="settings_fallback_silent">Молчать</string>
+    <string name="settings_fallback_random">Болтать</string>
+    <string name="settings_fallback_error">Фраза</string>
+    <string name="settings_fallback_desc">Когда ни база, ни ИИ не знают ответа: промолчать, иногда ответить случайной фразой из базы или сказать фразу из fallback.txt («не знаю, что ответить»).</string>
+    <string name="settings_chats_switch">Работа в группах</string>
+    <string name="settings_chats_desc">Бот отвечает в группах, если к нему обратились. Чтобы он видел сообщения: @BotFather → /setprivacy → Disable.</string>
+    <string name="settings_chat_prefix_hint">Обращение (например «Бот,»)</string>
+    <string name="settings_chat_prefix_desc">В группе бот отвечает, если сообщение начинается с этого слова, а также на команды /…, упоминание @бота и ответы на его сообщения.</string>
+    <string name="settings_antispam_title">Защита от спама</string>
+    <string name="settings_antispam_off">Выкл</string>
+    <string name="settings_antispam_normal">Норма</string>
+    <string name="settings_antispam_strict">Строго</string>
+    <string name="settings_antispam_desc">Ограничивает, как часто бот отвечает одному человеку, — защищает от флуда и капчи.</string>
+    <string name="settings_autoban_switch">Автобан спамеров</string>
+    <string name="settings_autoban_desc">Кто превысит лимит сообщений, автоматически попадёт в чёрный список.</string>
 </resources>

@@ -11,8 +11,8 @@ android {
         applicationId "com.vkbot.manager"
         minSdk 30
         targetSdk 34
-        versionCode 4
-        versionName "2.20"
+        versionCode 5
+        versionName "3.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         

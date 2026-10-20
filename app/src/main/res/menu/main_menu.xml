@@ -1,17 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    
+
     <item
         android:id="@+id/menu_instruction"
-        android:title="Инструкция"
-        android:icon="@drawable/ic_log"
+        android:title="@string/menu_instruction"
         app:showAsAction="never" />
-        
+
+    <item
+        android:id="@+id/menu_privacy"
+        android:title="@string/menu_privacy"
+        app:showAsAction="never" />
+
     <item
         android:id="@+id/menu_about"
         android:title="@string/about_bot"
-        android:icon="@drawable/ic_api"
         app:showAsAction="never" />
-        
+
+    <item
+        android:id="@+id/menu_website"
+        android:title="@string/menu_website"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_contact_telegram"
+        android:title="@string/menu_contact_telegram"
+        app:showAsAction="never" />
 </menu>

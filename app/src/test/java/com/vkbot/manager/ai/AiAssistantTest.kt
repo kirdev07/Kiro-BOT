@@ -41,7 +41,8 @@ class AiAssistantTest {
         }
     )
 
-    private fun ask(text: String = "как дела?", group: Boolean = false) = assistant.reply("u1", "Аня", text, group)
+    private fun ask(text: String = "как дела?", group: Boolean = false, history: List<AiTurn> = emptyList()) =
+        assistant.reply("Аня", text, group, history)
 
     @Test fun answersAndCleansMarkdown() {
         assertEquals("Привет! Я бот.", ask())
@@ -69,12 +70,20 @@ class AiAssistantTest {
         assertTrue(calls.isEmpty())
     }
 
-    @Test fun historyIsSentOnNextMessage() {
-        ask("привет"); ask("а как тебя зовут?")
-        val second = calls[1]
-        assertEquals(listOf(true, false, true), second.map { it.fromUser })
-        assertEquals("привет", second[0].text)
-        assertEquals("а как тебя зовут?", second.last().text)
+    @Test fun conversationHistoryIsSent() {
+        // История — из общего разговора: в том числе ответы базы, а не только ИИ
+        ask("а какое там население?", history = listOf(AiTurn(true, "какая столица франции"), AiTurn(false, "Париж!")))
+        val sent = calls.single()
+        assertEquals(listOf(true, false, true), sent.map { it.fromUser })
+        assertEquals("какая столица франции", sent[0].text)
+        assertEquals("а какое там население?", sent.last().text)
+    }
+
+    @Test fun historyIsLimitedToLastThreeExchanges() {
+        val long = (1..10).flatMap { listOf(AiTurn(true, "q$it"), AiTurn(false, "a$it")) }
+        ask("ещё", history = long)
+        assertEquals(7, calls.single().size)
+        assertEquals("q8", calls.single().first().text)
     }
 
     @Test fun errorGivesNullAndLog() {
@@ -122,7 +131,7 @@ class AiAssistantTest {
     @Test fun brainAsksAiOnlyWhenBaseHasNoAnswer() {
         val brain = BotBrain(AnswerDatabase(listOf(AnswerElement(1, "привет", "Привет из базы"))))
         val asked = mutableListOf<String>()
-        brain.aiResponder = { m -> asked.add(m.text); "Ответ ИИ" }
+        brain.aiResponder = { m, _ -> asked.add(m.text); "Ответ ИИ" }
 
         assertEquals("Привет из базы", brain.processMessage(BotMessage("привет", "1", "Аня"))?.text)
         assertEquals("Ответ ИИ", brain.processMessage(BotMessage("какая погода на Марсе", "1", "Аня"))?.text)

@@ -5,7 +5,7 @@ import android.graphics.BitmapFactory
 import java.io.ByteArrayOutputStream
 
 /**
- * Перекодирует в JPEG картинки, которые VK/Telegram могут не принять как фото (WebP, AVIF, HEIC, BMP).
+ * Перекодирует в JPEG картинки, которые Telegram может не принять как фото (WebP, AVIF, HEIC, BMP).
  * Декодирует сам Android (AVIF — с Android 12). JPEG, PNG и GIF отправляются без изменений.
  */
 object AndroidImageConverter : (DownloadedMedia) -> DownloadedMedia {

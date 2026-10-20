@@ -10,13 +10,14 @@ import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import com.vkbot.manager.ai.AiAssistant
+import com.vkbot.manager.ai.AiTurn
 import com.vkbot.manager.botbrain.BotBrain
 import com.vkbot.manager.botbrain.BotMessage
 import com.vkbot.manager.utils.BotNotificationHelper
 import com.vkbot.manager.utils.MediaResponses
 import com.vkbot.manager.utils.BotDataManager
-import com.vkbot.manager.utils.BotPlatform
 import com.vkbot.manager.utils.BlacklistManager
+import com.vkbot.manager.utils.RecentDialog
 import com.vkbot.manager.utils.SettingsManager
 import com.vkbot.manager.utils.NetworkHelper
 import kotlinx.coroutines.*
@@ -32,10 +33,10 @@ import androidx.core.content.edit
 
 /**
  * Фоновый сервис управления ботами.
- * Запускает ядро выбранной платформы (VK или Telegram) и держит его в фоне.
+ * Запускает ядро бота Telegram и держит его в фоне.
  */
 class BotService : Service() {
-    
+
     companion object {
         const val ACTION_START = "START_BOT"
         const val ACTION_STOP = "STOP_BOT"
@@ -46,18 +47,18 @@ class BotService : Service() {
         const val ACTION_NOTIFICATION_DISMISSED = "NOTIFICATION_DISMISSED"
         const val NOTIFICATION_ID = 1
         private const val LOG_FILE_NAME = "bot_logs.txt"
-        
+
         val logMutex = Mutex()
-        
+
         suspend fun logToFile(context: Context, message: String) {
             logMutex.withLock {
                 try {
                     val file = File(context.filesDir, LOG_FILE_NAME)
                     val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
                     val line = "[$timestamp] $message\n"
-                    
+
                     file.appendText(line, Charsets.UTF_8)
-                    
+
                     if (file.length() > 1024 * 1024) {
                         file.writeText("Log cleared due to size limit\n", Charsets.UTF_8)
                     }
@@ -65,11 +66,11 @@ class BotService : Service() {
             }
         }
     }
-    
+
     private lateinit var sharedPrefs: SharedPreferences
     private var botJob: Job? = null
     private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    
+
     @Volatile private var isRunning = false
     private val activeBots = ConcurrentHashMap<Int, MessengerBot>()
     private var botBrain: BotBrain? = null
@@ -103,7 +104,7 @@ class BotService : Service() {
             }
         }
     }
-    
+
     override fun onCreate() {
         super.onCreate()
         sharedPrefs = getSharedPreferences("vk_bot_settings", MODE_PRIVATE)
@@ -117,7 +118,7 @@ class BotService : Service() {
             this, notificationDismissReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED
         )
     }
-    
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null) {
             if (sharedPrefs.getBoolean("bot_running", false)) {
@@ -151,7 +152,7 @@ class BotService : Service() {
         }
         return START_STICKY
     }
-    
+
     private fun startBot() {
         if (isRunning) return
 
@@ -162,10 +163,10 @@ class BotService : Service() {
             stopSelf()
             return
         }
-        
+
         clearLogs()
         sharedPrefs.edit { putBoolean("bot_running", true) }
-        
+
         botJob?.cancel()
         botJob = serviceScope.launch {
             try {
@@ -173,7 +174,15 @@ class BotService : Service() {
                 addLog("✅ Инициализация BotBrain...")
                 botBrain = BotBrain(this@BotService).apply {
                     isUnansweredLogEnabled = { SettingsManager.isUnansweredLogEnabled }
-                    aiResponder = { m -> aiAssistant.reply(m.authorId, m.authorName, m.text, m.isGroupChat) }
+                    aiResponder = { m, turns ->
+                        val history = turns.flatMap { listOf(AiTurn(true, it.userText), AiTurn(false, it.botText)) }
+                        aiAssistant.reply(m.authorName, m.text, m.isGroupChat, history)
+                    }
+                    aiAvailable = { SettingsManager.aiConfig.let { it.enabled && it.isComplete } }
+                    debugListener = { debug -> if (SettingsManager.isBrainDebugEnabled) addLog(debug.format()) }
+                    personality = { SettingsManager.personality }
+                    autoMood = { SettingsManager.isAutoMood }
+                    reloadRules()
                     setLogCallback { message ->
                          if (!message.contains("Поиск") && !message.contains("score") && !message.contains("Индексация")) {
                              val clean = message.replace(Regex("\\[.*?]"), "")
@@ -183,14 +192,14 @@ class BotService : Service() {
                          }
                     }
                 }
-                
+
                 val count = botBrain?.answerDatabase?.answersCount ?: 0
                 addLog("📚 База загружена: $count ответов")
                 sharedPrefs.edit { putInt("stat_total_answers", count) }
-                
+
                 startBackgroundTasks()
                 syncActiveBots()
-                
+
             } catch (e: Exception) {
                 if (e !is CancellationException) {
                     updateNotification("Ошибка: ${e.message}")
@@ -200,7 +209,7 @@ class BotService : Service() {
             }
         }
     }
-    
+
     // Mutex: периодическая синхронизация и ACTION_START не должны создать два ядра на один токен
     private suspend fun syncActiveBots() = syncMutex.withLock { withContext(Dispatchers.IO) {
         val bots = BotDataManager.loadBots(this@BotService)
@@ -208,9 +217,9 @@ class BotService : Service() {
 
         for (bot in bots) {
             val token = bot.token
-            // Смена токена или платформы (VK ↔ Telegram) — перезапуск ядра
-            val identity = "${bot.platform.id}:$token"
-            val shouldRun = bot.isRunning
+            // Смена токена — перезапуск ядра
+            val identity = token
+            val shouldRun = token.isNotEmpty()
             val name = bot.name
             val id = bot.id
 
@@ -222,21 +231,23 @@ class BotService : Service() {
             if (!shouldRun) failedTokens.remove(id)
 
             if (shouldRun && token.isNotEmpty() && !activeBots.containsKey(id) && failedTokens[id] != identity) {
-                addLog("🚀 Запуск ядра ${bot.platform.title} для $name...")
+                addLog("🚀 Запуск бота Telegram $name...")
 
                 val onLog: (String) -> Unit = { logMsg -> addLog("[$name] $logMsg") }
                 val onStatus: (String) -> Unit = { text -> if (isRunning) updateNotification(text) }
                 val onWait: suspend () -> Unit = { NetworkHelper.waitForNetwork(this@BotService) }
-                val newBot: MessengerBot = when (bot.platform) {
-                    BotPlatform.VK -> KirdevBot(token, onLog, onStatus, onWait)
-                    BotPlatform.TELEGRAM -> TelegramBot(token, onLog, onStatus, onWait)
-                }
+                val newBot: MessengerBot = TelegramBot(token, onLog, onStatus, onWait)
 
                 newBot.setMessageProcessor { message -> processSmartMessage(message, id) }
                 activeBots[id] = newBot
                 runningTokens[id] = identity
                 failedTokens.remove(id)
-                sharedPrefs.edit { putLong("bot_${id}_start_time", System.currentTimeMillis()) }
+                // Каждый запуск — новый сеанс: счётчики «Обработано» / «Отвечено» с нуля
+                sharedPrefs.edit {
+                    putLong("bot_${id}_start_time", System.currentTimeMillis())
+                    putLong("bot_${id}_processed", 0)
+                    putLong("bot_${id}_answered", 0)
+                }
                 // Запуск вне блокировки: ожидание сети не должно держать syncMutex
                 serviceScope.launch(Dispatchers.IO) {
                     if (!newBot.start()) {
@@ -249,7 +260,7 @@ class BotService : Service() {
                             }
                         }
                         newBot.stop()
-                        addLog("❌ $name не запущен. Исправьте токен или выключите и включите бота")
+                        addLog("❌ $name не запущен. Исправьте токен (Главная → «Изменить») и запустите бота снова")
                         updateStatusNotification()
                     }
                 }
@@ -271,7 +282,7 @@ class BotService : Service() {
                 activeBots.remove(rid)?.stop()
             }
         }
-        
+
         delay(200)
         updateStatusNotification()
     } }
@@ -312,11 +323,12 @@ class BotService : Service() {
             // Беседа/группа: сообщение пришло не в личку (адресат ≠ автор)
             val peerId = (message["peer_id"] as? Number)?.toString()
             val isGroupChat = peerId != null && peerId != fromId
-            val response = botBrain?.processMessage(BotMessage(text, fromId, authorName, isGroupChat = isGroupChat))
+            val response = botBrain?.processMessage(BotMessage(text, fromId, authorName, isGroupChat = isGroupChat, chatId = peerId.orEmpty()))
             if (response != null && !response.isEmpty) {
                 val currentAnswered = sharedPrefs.getLong("bot_${botId}_answered", 0)
                 sharedPrefs.edit { putLong("bot_${botId}_answered", currentAnswered + 1) }
-                
+                RecentDialog.add(this, authorName, text, response.text.ifEmpty { "📎" })
+
                 return mapOf(
                     "text" to response.text,
                     "attachments" to response.attachments
@@ -328,13 +340,13 @@ class BotService : Service() {
             null
         }
     }
-    
+
     private fun addLog(message: String) {
         serviceScope.launch(Dispatchers.IO) {
             logToFile(applicationContext, message)
         }
     }
-    
+
     private fun clearLogs() {
         serviceScope.launch(Dispatchers.IO) {
             logMutex.withLock {
@@ -361,7 +373,7 @@ class BotService : Service() {
                     botBrain?.saveStats()
                 }
             }
-            
+
             while (isActive && isRunning) {
                 delay(30 * 60 * 1000L)
                 activeBots.values.forEach { it.clearUserCache() }
@@ -383,7 +395,7 @@ class BotService : Service() {
     private fun updateNotification(text: String?) {
         if (!isRunning) return
         val nm = getSystemService(NotificationManager::class.java) ?: return
-        
+
         val notificationText = text ?: run {
             val total = activeBots.size
             if (total > 0) {
@@ -429,7 +441,7 @@ class BotService : Service() {
         super.onTaskRemoved(rootIntent)
         addLog("⚙️ Приложение закрыто, бот продолжает работу в фоне")
     }
-    
+
     /** serviceScope при остановке отменяется, поэтому пишем в отдельном потоке. */
     private fun saveStatsInBackground() {
         val brain = botBrain ?: return
@@ -448,6 +460,6 @@ class BotService : Service() {
         sharedPrefs.edit { putBoolean("bot_running", false) }
         super.onDestroy()
     }
-    
+
     override fun onBind(intent: Intent?): IBinder? = null
 }
