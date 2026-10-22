@@ -2,37 +2,27 @@ package com.vkbot.manager.botbrain
 
 import java.io.Serializable
 
-/**
- * Модель ответа бота.
- */
+/** Reply text and optional media links, consumed by Telegram delivery. */
 data class BotResponse(
     val text: String = "",
     val attachments: List<Attachment> = emptyList()
 ) : Serializable {
-
     val isEmpty: Boolean get() = text.isEmpty() && attachments.isEmpty()
 
-    override fun toString(): String {
-        return "BotResponse { text='$text', atts=${attachments.size} }"
-    }
+    override fun toString(): String = "BotResponse { text='$text', atts=${attachments.size} }"
 
     class Builder {
-        private var text: String = ""
-        private val attachments = mutableListOf<Attachment>()
+        private var responseText: String = ""
+        private val pendingAttachments = ArrayList<Attachment>()
 
-        fun text(text: String?): Builder {
-            this.text = text ?: ""
-            return this
+        fun text(text: String?): Builder = apply {
+            responseText = text.orEmpty()
         }
 
-        fun addAttachments(attachments: List<Attachment>?): Builder {
-            if (attachments != null) this.attachments.addAll(attachments)
-            return this
+        fun addAttachments(attachments: List<Attachment>?): Builder = apply {
+            if (attachments != null) pendingAttachments.addAll(attachments)
         }
 
-        fun build(): BotResponse {
-            return BotResponse(text, attachments.toList())
-        }
+        fun build(): BotResponse = BotResponse(responseText, pendingAttachments.toList())
     }
-
 }

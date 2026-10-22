@@ -3,9 +3,7 @@ package com.vkbot.manager.botbrain
 import java.io.Serializable
 import java.util.Date
 
-/**
- * Элемент базы ответов (Kotlin data class).
- */
+/** A stored question/answer record with separate runtime usage count. */
 data class AnswerElement(
     val id: Long,
     val questionText: String = "",
@@ -17,31 +15,21 @@ data class AnswerElement(
     val requiredContext: String = "",
     val resultContext: String = ""
 ) : Serializable {
-
-    val createdDate: Date
-        get() = Date(_createdDate.time)
+    val createdDate: Date get() = Date(_createdDate.time)
 
     fun incrementUsageCount() {
-        usageCount++
+        usageCount += 1
     }
 
-    override fun toString(): String {
-        return "ID: $id | Q: $questionText"
-    }
+    override fun toString(): String = "ID: $id | Q: $questionText"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is AnswerElement) return false
-
-        if (id != other.id) return false
-        if (repetitionLimit != other.repetitionLimit) return false
-        if (questionText != other.questionText) return false
-        if (answerText != other.answerText) return false
-        if (answerAttachments != other.answerAttachments) return false
-        if (requiredContext != other.requiredContext) return false
-        if (resultContext != other.resultContext) return false
-
-        return true
+        return id == other.id && questionText == other.questionText &&
+            answerText == other.answerText && answerAttachments == other.answerAttachments &&
+            repetitionLimit == other.repetitionLimit && requiredContext == other.requiredContext &&
+            resultContext == other.resultContext
     }
 
     override fun hashCode(): Int {
@@ -54,5 +42,4 @@ data class AnswerElement(
         result = 31 * result + resultContext.hashCode()
         return result
     }
-
 }
