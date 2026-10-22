@@ -320,6 +320,12 @@ class TelegramBot(
         val media = mutableListOf<Media>()
         val links = mutableListOf<String>()
         for (a in attachments) {
+            // Legacy VK object URLs are web pages, not direct Telegram-uploadable files.
+            // Skip download attempts; preserve the link as text instead.
+            if (com.vkbot.manager.botbrain.LegacyVkMedia.isLegacyObjectPage(a.url)) {
+                links.add(a.url)
+                continue
+            }
             val resolved = resolveMedia(a.url)
             if (resolved != null) media.add(resolved) else links.add(a.url)
         }
