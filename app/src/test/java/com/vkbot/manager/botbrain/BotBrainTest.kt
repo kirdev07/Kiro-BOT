@@ -91,9 +91,9 @@ class BotBrainTest {
         assertTrue(reply == "Привет, Тест!")
     }
     @Test
-    fun unknownQuestionDoesNotProduceFabricatedAnswer() {
+    fun unknownQuestionUsesExplicitFallbackAndIsLogged() {
         val brain = brainOf(answer(1, "привет", "Привет!"))
-        assertEquals(null, ask(brain, "совершенно незнакомая команда xyz987", "unknown-user"))
+        assertEquals("Извините, я не знаю, что ответить.", ask(brain, "совершенно незнакомая команда xyz987", "unknown-user"))
         assertEquals(1, brain.unanswered.size)
     }
 
