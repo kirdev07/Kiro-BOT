@@ -7,6 +7,7 @@ on:
       - 'app/src/test/**'
       - 'app/build.gradle'
       - 'build.gradle'
+      - 'gradle.properties'
       - 'gradle/**'
       - '.github/workflows/android-unit-tests.yml'
   push:
@@ -15,6 +16,7 @@ on:
       - 'app/src/test/**'
       - 'app/build.gradle'
       - 'build.gradle'
+      - 'gradle.properties'
       - 'gradle/**'
       - '.github/workflows/android-unit-tests.yml'
   workflow_dispatch:
