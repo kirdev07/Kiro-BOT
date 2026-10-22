@@ -14,7 +14,7 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class TokenCryptoTest {
 
-    private val token = "vk1.a.TEST_token_1234567890_абв"
+    private val token = "123456789:TEST_telegram_token_абв"
 
     @Test
     fun encryptDecryptRoundTrip() {
@@ -43,8 +43,8 @@ class TokenCryptoTest {
         val prefs = context.getSharedPreferences("vk_bot_settings", android.content.Context.MODE_PRIVATE)
         val backup = if (file.exists()) file.readText() else null
         try {
-            // Файл и prefs в формате старой версии: токен открытым текстом
-            file.writeText("""[{"id":1,"name":"Test","token":"$token"}]""")
+            // Старый формат хранения токена (открытым текстом), но платформа уже Telegram
+            file.writeText("""[{"id":1,"name":"Test","token":"$token","platform":"telegram"}]""")
             prefs.edit().putString("bot_1_token", token).commit()
 
             val loaded = BotDataManager.loadBots(context)
