@@ -90,4 +90,18 @@ class BotBrainTest {
         val reply = ask(brain, "привет")
         assertTrue(reply == "Привет, Тест!")
     }
+    @Test
+    fun unknownQuestionDoesNotProduceFabricatedAnswer() {
+        val brain = brainOf(answer(1, "привет", "Привет!"))
+        assertEquals(null, ask(brain, "совершенно незнакомая команда xyz987", "unknown-user"))
+        assertEquals(1, brain.unanswered.size)
+    }
+
+    @Test
+    fun eachUserCanReceiveAnExactAnswer() {
+        val brain = brainOf(answer(1, "статус", "Работаю"))
+        assertEquals("Работаю", ask(brain, "статус", "user-one"))
+        assertEquals("Работаю", ask(brain, "статус", "user-two"))
+    }
+
 }
