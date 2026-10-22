@@ -7,7 +7,7 @@ import com.vkbot.manager.utils.SettingsManager
 /**
  * Основной класс приложения Kiro Bot.
  */
-class VKBotApplication : Application() {
+class KiroBotApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
