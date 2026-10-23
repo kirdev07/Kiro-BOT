@@ -303,9 +303,15 @@ class BotService : Service() {
         val version = archive.lastModified() to archive.length()
         val engine = synchronized(experimentalArchives) {
             if (experimentalArchiveVersions[botId] != version || experimentalArchives[botId] == null) {
-                val rows = com.vkbot.manager.botbrain.independent.KiroAnswerArchive.parse(
-                    archive.readText(Charsets.UTF_8)
-                )
+                val rows = try {
+                    com.vkbot.manager.botbrain.independent.KiroAnswerArchive.parse(
+                        archive.readText(Charsets.UTF_8)
+                    )
+                } catch (_: java.io.IOException) {
+                    return null
+                } catch (_: IllegalArgumentException) {
+                    return null
+                }
                 experimentalArchives[botId] = com.vkbot.manager.botbrain.independent.KiroArchiveSwitch(rows)
                 experimentalArchiveVersions[botId] = version
             }
