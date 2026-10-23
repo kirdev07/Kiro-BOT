@@ -33,6 +33,28 @@ class KiroAnswerArchiveTest {
         assertEquals(rows, KiroAnswerArchive.parse(KiroAnswerArchive.export(rows)))
     }
 
+    @Test fun migratesLargeLegacyDatabaseWithoutLosingRows() {
+        val source = (1..14_993).joinToString("\n") { index ->
+            "вопрос $index|ответ $index||0|0||"
+        }
+        val imported = KiroAnswerArchive.importLegacy(source)
+        assertEquals(14_993, imported.size)
+        val exported = KiroAnswerArchive.export(imported)
+        val restored = KiroAnswerArchive.parse(exported)
+        assertEquals(imported, restored)
+        assertEquals("вопрос 14993", restored.last().question)
+        assertEquals("ответ 14993", restored.last().answer)
+    }
+
+    @Test fun preservesLegacyFileContentWithoutModification() {
+        val source = "# comment\nпривет|здравствуй\nкак дела|хорошо"
+        val snapshot = source.toByteArray(Charsets.UTF_8).copyOf()
+        val rows = KiroAnswerArchive.importLegacy(source)
+        KiroAnswerArchive.parse(KiroAnswerArchive.export(rows))
+        assertTrue(snapshot.contentEquals(source.toByteArray(Charsets.UTF_8)))
+        assertEquals(2, rows.size)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsMalformedRows() {
         KiroAnswerArchive.importLegacy("invalid")
