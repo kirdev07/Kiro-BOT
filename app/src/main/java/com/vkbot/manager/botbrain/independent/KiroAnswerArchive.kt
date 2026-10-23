@@ -42,18 +42,22 @@ internal object KiroAnswerArchive {
     }
 
     fun parse(text: String): List<Row> {
-        val lines = text.lineSequence().toList()
-        require(lines.firstOrNull() == header) { "Unsupported archive format" }
+        val lines = text.lineSequence().iterator()
+        require(lines.hasNext() && lines.next() == header) { "Unsupported archive format" }
         val seenLineNumbers = HashSet<Int>()
-        return lines.drop(1).filter(String::isNotEmpty).map { line ->
+        val result = ArrayList<Row>()
+        while (lines.hasNext()) {
+            val line = lines.next()
+            if (line.isEmpty()) continue
             val parts = line.split('\t').map(::unescape)
             require(parts.size == 8) { "Invalid archive row" }
             val lineNumber = parts[0].toInt()
             require(lineNumber > 0) { "Invalid source line number" }
             require(seenLineNumbers.add(lineNumber)) { "Duplicate source line number" }
-            Row(lineNumber, parts[1], parts[2], parts[3], parts[4],
-                parts[5], parts[6], parts[7])
+            result.add(Row(lineNumber, parts[1], parts[2], parts[3], parts[4],
+                parts[5], parts[6], parts[7]))
         }
+        return result
     }
 
     private fun escape(value: String): String = buildString {
