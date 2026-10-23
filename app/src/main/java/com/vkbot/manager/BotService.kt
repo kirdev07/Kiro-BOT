@@ -299,7 +299,13 @@ class BotService : Service() {
 
     private fun experimentalArchiveReply(botId: Int, sessionId: Long, text: String): com.vkbot.manager.botbrain.independent.KiroArchiveConversation.Reply? {
         val archive = File(filesDir, "kiro_answer_archive_v1.txt")
-        if (!archive.isFile || archive.length() > 8L * 1024 * 1024) return null
+        if (!archive.isFile || archive.length() > 8L * 1024 * 1024) {
+            synchronized(experimentalArchives) {
+                experimentalArchives.remove(botId)
+                experimentalArchiveVersions.remove(botId)
+            }
+            return null
+        }
         val version = archive.lastModified() to archive.length()
         val engine = synchronized(experimentalArchives) {
             if (experimentalArchiveVersions[botId] != version || experimentalArchives[botId] == null) {
