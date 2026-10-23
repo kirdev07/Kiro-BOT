@@ -46,10 +46,16 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
         val exact = candidates.firstOrNull { it.requiredContext.isNotBlank() } ?: candidates.firstOrNull()
         if (exact != null) return exact
         val first = KiroTextPreparation.normalize(message).firstOrNull()
-        val possibleMasks = if (first == null) leadingStarMasks else
-            masksByFirstChar[first].orEmpty() + leadingStarMasks
+        val literalMasks = if (first == null) emptyList() else masksByFirstChar[first].orEmpty()
+        // Both lists retain archive order; merge them without sorting or allocating a combined list.
+        var literalIndex = 0
+        var starIndex = 0
         var generalMatch: KiroAnswerArchive.Row? = null
-        for (indexed in possibleMasks.sortedBy { it.index }) {
+        while (literalIndex < literalMasks.size || starIndex < leadingStarMasks.size) {
+            val takeLiteral = starIndex >= leadingStarMasks.size ||
+                (literalIndex < literalMasks.size &&
+                    literalMasks[literalIndex].index < leadingStarMasks[starIndex].index)
+            val indexed = if (takeLiteral) literalMasks[literalIndex++] else leadingStarMasks[starIndex++]
             val row = indexed.value
             if (row.requiredContext.isNotBlank() &&
                 !row.requiredContext.trim().equals(context, ignoreCase = true)) continue
