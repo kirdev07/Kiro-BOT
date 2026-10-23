@@ -2,6 +2,7 @@ package com.vkbot.manager.utils
 
 import android.content.Context
 import android.util.Log
+import android.util.AtomicFile
 import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
@@ -43,9 +44,9 @@ object BotDataManager {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         try {
-            val file = File(context.filesDir, BOTS_FILE_NAME)
-            if (file.exists()) {
-                val jsonString = file.readText(Charsets.UTF_8)
+            val file = AtomicFile(File(context.filesDir, BOTS_FILE_NAME))
+            if (file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()) {
+                val jsonString = file.openRead().bufferedReader(Charsets.UTF_8).use { it.readText() }
                 if (jsonString.isNotEmpty()) {
                     val arr = JSONArray(jsonString)
                     var hasPlainToken = false
@@ -75,7 +76,7 @@ object BotDataManager {
                         }
                     }
                     // Файл от старой версии: шифруем токены сразу
-                    if (hasPlainToken && !keystoreBroken) saveBots(context, list)
+                    if (hasPlainToken) saveBots(context, list)
                 }
             }
 
@@ -90,50 +91,46 @@ object BotDataManager {
      * Сохраняет список ботов во внутреннюю память (токен — зашифрованным) и SharedPreferences (без токена).
      */
     fun saveBots(context: Context, bots: List<Bot>) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-        // 1. Сохраняем в SharedPreferences для быстрого доступа сервиса
-        prefs.edit {
-            val activeIds = bots.map { it.id }.joinToString(",")
-            putString("active_bot_ids", activeIds)
-
-            // Старые версии хранили токены открытым текстом — стираем
-            prefs.all.keys.filter { TOKEN_PREF_KEY.matches(it) }.forEach { remove(it) }
-
-            bots.forEach { bot ->
-                putString("bot_${bot.id}_name", bot.name)
-                // Флаг «включён» больше не нужен: бот с токеном запускается кнопкой на главной
-                remove("bot_${bot.id}_running")
-            }
-        }
-
-        // 2. Сохраняем в JSON файл (внутренняя память)
+        // Encrypt everything before modifying either storage location.
+        // If Keystore fails, leave the existing bot configuration untouched.
+        val jsonArray = JSONArray()
         try {
-            val file = File(context.filesDir, BOTS_FILE_NAME)
-            val jsonArray = JSONArray()
             bots.forEach { bot ->
                 jsonArray.put(JSONObject().apply {
                     put("id", bot.id)
                     put("name", bot.name)
-                    put("token", encryptOrPlain(bot.token))
+                    put("token", TokenCrypto.encrypt(bot.token))
                     put("platform", PLATFORM_TELEGRAM)
                 })
             }
-            file.writeText(jsonArray.toString(4), Charsets.UTF_8)
         } catch (e: Exception) {
-            Log.e(TAG, "Error saving bots to file", e)
+            Log.e(TAG, "Unable to encrypt bot token; existing data preserved", e)
+            return
+        }
+
+        // Atomic replacement prevents a partial bots.json after interrupted writes.
+        val file = AtomicFile(File(context.filesDir, BOTS_FILE_NAME))
+        var output: java.io.FileOutputStream? = null
+        try {
+            output = file.startWrite()
+            output.write(jsonArray.toString(4).toByteArray(Charsets.UTF_8))
+            file.finishWrite(output)
+        } catch (e: Exception) {
+            if (output != null) file.failWrite(output)
+            Log.e(TAG, "Error saving bots to file; existing data preserved", e)
+            return
+        }
+
+        // Only update preferences after the encrypted file was safely written.
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit {
+            putString("active_bot_ids", bots.map { it.id }.joinToString(","))
+            prefs.all.keys.filter { TOKEN_PREF_KEY.matches(it) }.forEach { remove(it) }
+            bots.forEach { bot ->
+                putString("bot_${bot.id}_name", bot.name)
+                remove("bot_${bot.id}_running")
+            }
         }
     }
 
-    /** Если Keystore недоступен, лучше сохранить токен как есть, чем потерять его. */
-    private fun encryptOrPlain(token: String): String = try {
-        TokenCrypto.encrypt(token)
-    } catch (e: Exception) {
-        Log.e(TAG, "Keystore недоступен, токен сохранён без шифрования", e)
-        keystoreBroken = true
-        token
-    }
-
-    /** Не пытаться пересохранять токены при каждой загрузке, если Keystore не работает. */
-    @Volatile private var keystoreBroken = false
 }
