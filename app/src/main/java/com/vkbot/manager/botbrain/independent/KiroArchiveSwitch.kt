@@ -10,7 +10,10 @@ internal class KiroArchiveSwitch(
     private val sessions = LinkedHashMap<Long, KiroArchiveConversation>(16, 0.75f, true)
 
     @Synchronized
-    fun reply(sessionId: Long, message: String): String? {
+    fun reply(sessionId: Long, message: String): String? = replyRich(sessionId, message)?.text
+
+    @Synchronized
+    fun replyRich(sessionId: Long, message: String): KiroArchiveConversation.Reply? {
         if (message.isBlank()) return null
         val session = sessions[sessionId] ?: KiroArchiveConversation(records).also {
             if (sessions.size >= maxSessions) {
@@ -19,7 +22,7 @@ internal class KiroArchiveSwitch(
             }
             sessions[sessionId] = it
         }
-        return session.respond(message)
+        return session.respondRich(message)
     }
 
     @Synchronized
