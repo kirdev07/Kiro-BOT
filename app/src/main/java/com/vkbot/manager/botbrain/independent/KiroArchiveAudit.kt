@@ -43,7 +43,8 @@ internal object KiroArchiveAudit {
             val supportedPattern = !row.question.startsWith("regex:", ignoreCase = true) &&
                 (!row.question.contains("*") ||
                     (row.question.length <= 2048 && row.question.count { it == '*' } <= 16))
-            if (!empty && !badLimit && validMedia && supportedPattern) ready++
+            val searchable = KiroTextPreparation.words(row.question).isNotEmpty()
+            if (!empty && searchable && !badLimit && validMedia && supportedPattern) ready++
         }
         return Report(rows.size, ready, media, patterns, contextual, repeatLimits,
             emptyFields, invalidLimits, duplicates)
