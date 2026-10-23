@@ -176,7 +176,21 @@ class BotService : Service() {
                 val archiveReady = File(filesDir, "kiro_answer_archive_v1.txt").isFile
                 val textReady = File(filesDir, "kiro_replies_v1.txt").isFile &&
                     File(filesDir, "kiro_dialogs_v1.txt").isFile
-                if (!archiveReady && !textReady) {
+                if (archiveReady) {
+                    val archive = File(filesDir, "kiro_answer_archive_v1.txt")
+                    if (archive.length() > 8L * 1024 * 1024) {
+                        addLog("⚠️ Kiro Brain: архив больше 8 МБ")
+                    } else {
+                        try {
+                            val rows = com.vkbot.manager.botbrain.independent.KiroAnswerArchive.parse(archive.readText(Charsets.UTF_8))
+                            addLog("🧠 Kiro Brain: независимый архив — ${rows.size} записей")
+                        } catch (e: Exception) {
+                            addLog("⚠️ Kiro Brain: ошибка чтения архива (${e.javaClass.simpleName})")
+                        }
+                    }
+                } else if (textReady) {
+                    addLog("🧠 Kiro Brain: отдельная текстовая база найдена")
+                } else {
                     addLog("⚠️ Kiro Brain: отдельная база не импортирована. Ответы из старой базы не используются.")
                 }
                 botBrain = BotBrain(this@BotService).apply {
@@ -201,7 +215,7 @@ class BotService : Service() {
                 }
 
                 val count = botBrain?.answerDatabase?.answersCount ?: 0
-                addLog("📚 База загружена: $count ответов")
+                addLog("📚 Legacy BotBrain: $count ответов (не база Kiro Brain)")
                 sharedPrefs.edit { putInt("stat_total_answers", count) }
 
                 startBackgroundTasks()
