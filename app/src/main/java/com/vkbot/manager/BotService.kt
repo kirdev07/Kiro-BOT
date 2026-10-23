@@ -339,8 +339,7 @@ class BotService : Service() {
     // Legacy engine remains available only through an explicit rollback preference.
     private val experimentalBrains = ConcurrentHashMap<Int, com.vkbot.manager.botbrain.independent.KiroBrainSwitch>()
 
-    // Separate opt-in archive: a prevalidated KIRO-ANSWER-ARCHIVE/1 file.
-    // The original answer.txt is never read or modified by this route.
+    // Independent KIRO-ANSWER-ARCHIVE/1. Legacy answer.txt is only read during migration.
     private val experimentalArchives =
         ConcurrentHashMap<Int, com.vkbot.manager.botbrain.independent.KiroArchiveSwitch>()
     private val experimentalArchiveVersions = ConcurrentHashMap<Int, Pair<Long, Long>>()
@@ -435,7 +434,7 @@ class BotService : Service() {
             val peerId = (message["peer_id"] as? Number)?.toString()
             val isGroupChat = peerId != null && peerId != fromId
             // Keep existing command, spam, group and attachment checks above this point.
-            // The new engine uses only separate, user-provided KIRO-* files.
+            // Kiro Brain uses a migrated private archive and optional authored KIRO-* rules.
             if (sharedPrefs.getBoolean("kiro_independent_engine_experimental", true)) {
                 val isolatedChatId = (message["peer_id"] as? Number)?.toLong() ?: fromId.toLong()
                 // Group users get separate dialog contexts; private chats keep chat identity.
@@ -444,7 +443,7 @@ class BotService : Service() {
                 } else isolatedChatId
                 val archiveMode = File(filesDir, "kiro_answer_archive_v1.txt").isFile
                 val rich = if (archiveMode) experimentalArchiveReply(botId, sessionId, text) else null
-                val independent = if (archiveMode) rich?.text else experimentalReply(botId, sessionId, text)
+                val independent = rich?.text ?: experimentalReply(botId, sessionId, text)
                 if (independent != null && (independent.isNotBlank() || rich?.attachments?.isNotEmpty() == true)) {
                     val answered = sharedPrefs.getLong("bot_${botId}_answered", 0)
                     sharedPrefs.edit { putLong("bot_${botId}_answered", answered + 1) }
@@ -453,7 +452,7 @@ class BotService : Service() {
                     val media = rich?.attachments.orEmpty().map { com.vkbot.manager.botbrain.Attachment(it) }
                     return mapOf("text" to independent, "attachments" to media)
                 }
-                // Do not silently use legacy answers if Kiro Brain has no matching rule.
+                // No legacy fallback: independent archive and authored KIRO rules were both checked.
                 return null
             }
             val response = botBrain?.processMessage(BotMessage(text, fromId, authorName, isGroupChat = isGroupChat, chatId = peerId.orEmpty()))
