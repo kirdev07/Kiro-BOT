@@ -23,7 +23,7 @@ internal class KiroArchiveConversation(rows: List<KiroAnswerArchive.Row>) {
         consecutive = if (lastLine == candidate.lineNumber) consecutive + 1 else 1
         lastLine = candidate.lineNumber
         if (candidate.resultContext.isNotBlank()) context = candidate.resultContext.trim()
-        return candidate.answer
+        return candidate.answer.replace("<br>", "\\n").replace("<pipe>", "|")
     }
 
     @Synchronized
