@@ -11,7 +11,7 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
     }
 
     private val entries = rows.asSequence().filter {
-        it.question.isNotBlank() && it.answer.isNotBlank() && validLimit(it) &&
+        it.question.isNotBlank() && (it.answer.isNotBlank() || it.attachments.isNotBlank()) && validLimit(it) &&
             KiroSafeAttachments.parse(it.attachments) != null && !it.question.contains("*") &&
             !it.question.startsWith("regex:", ignoreCase = true)
     }.groupBy { KiroTextPreparation.words(decodeLegacyText(it.question)) }
@@ -21,7 +21,7 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
 
     private val masks = rows.filter {
         it.question.contains("*") && !it.question.startsWith("regex:", ignoreCase = true) &&
-            KiroSafeAttachments.parse(it.attachments) != null && it.answer.isNotBlank() && validLimit(it) &&
+            KiroSafeAttachments.parse(it.attachments) != null && (it.answer.isNotBlank() || it.attachments.isNotBlank()) && validLimit(it) &&
             it.question.length <= 2048 && it.question.count { c -> c == '*' } <= 16
     }
 
