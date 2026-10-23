@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.vkbot.manager.botbrain.independent.KiroAnswerArchive
+import com.vkbot.manager.botbrain.independent.KiroArchiveAudit
 import java.io.File
 
 /** Manual import only. Does not activate experimental replies or overwrite answer.txt. */
@@ -36,9 +37,10 @@ class KiroBrainImportActivity : AppCompatActivity() {
             }
             require(rows.isNotEmpty()) { "Нет записей для импорта" }
             val archive = KiroAnswerArchive.export(rows)
+            val audit = KiroArchiveAudit.inspect(rows)
             MaterialAlertDialogBuilder(this)
                 .setTitle("Предпросмотр импорта")
-                .setMessage("Найдено записей: ${rows.size}.\nВложения и шаблоны сохраняются как данные, но пока не исполняются.\n\nСоздать архив Kiro Brain? Исходный answer.txt не изменится.")
+                .setMessage("Всего: ${audit.total}\nГотовы к текстовому поиску: ${audit.ready}\nС вложениями: ${audit.media}\nС шаблонами: ${audit.patterns}\nС контекстом: ${audit.contextual}\nС лимитами повторов: ${audit.repeatLimits}\nПустые поля: ${audit.emptyFields}\nНекорректные лимиты: ${audit.invalidLimits}\nПовторы пар вопрос/ответ: ${audit.duplicatePairs}\n\nКатегории пересекаются. Вложения и шаблоны сохраняются, но не исполняются.\n\nИмпортировать без изменения исходного answer.txt?")
                 .setNegativeButton("Отмена", null)
                 .setPositiveButton("Импортировать") { _, _ ->
                     try {
