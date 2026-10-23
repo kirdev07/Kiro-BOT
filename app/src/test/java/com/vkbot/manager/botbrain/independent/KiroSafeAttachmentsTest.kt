@@ -27,4 +27,24 @@ class KiroSafeAttachmentsTest {
     @Test fun rejectsTooManyAttachments() {
         assertNull(KiroSafeAttachments.parse(List(11) { "https://example.com/$it" }.joinToString(",")))
     }
+    @Test fun blocksLocalAndReservedMediaHosts() {
+        val forbidden = listOf(
+            "https://localhost/a.jpg",
+            "https://127.0.0.1/a.jpg",
+            "https://192.168.1.5/a.jpg",
+            "https://10.0.0.8/a.jpg",
+            "https://172.16.0.1/a.jpg",
+            "https://169.254.169.254/latest/meta-data/",
+            "https://service.internal/a.jpg",
+            "https://service.local/a.jpg"
+        )
+        forbidden.forEach { url ->
+            org.junit.Assert.assertNull("Unexpectedly accepted: $url", KiroSafeAttachments.parse(url))
+        }
+        org.junit.Assert.assertEquals(
+            listOf("https://example.com/a.jpg"),
+            KiroSafeAttachments.parse("https://example.com/a.jpg")
+        )
+    }
+
 }
