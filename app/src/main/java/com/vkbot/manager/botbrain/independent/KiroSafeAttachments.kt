@@ -15,7 +15,7 @@ internal object KiroSafeAttachments {
         // Numeric aliases such as 2130706433 and 0x7f000001 are unsafe.
         if (h.all { it.isDigit() } || h.startsWith("0x")) return true
         val octets = h.split('.')
-        if (octets.size != 4) return false
+        if (octets.size != 4) return octets.all { part -> part.isNotEmpty() && part.all { c -> c.isDigit() } }
         // Only canonical decimal IPv4 is allowed; reject octal/hex/shortened forms.
         if (octets.any { it.isEmpty() || it.any { c -> !c.isDigit() } ||
                 (it.length > 1 && it.startsWith("0")) ||
