@@ -42,6 +42,9 @@ class TokenCryptoTest {
         val file = File(context.filesDir, "bots.json")
         val prefs = context.getSharedPreferences("vk_bot_settings", android.content.Context.MODE_PRIVATE)
         val backup = if (file.exists()) file.readText() else null
+        val originalLegacyToken = prefs.getString("bot_1_token", null)
+        val originalActiveIds = prefs.getString("active_bot_ids", null)
+        val originalBotName = prefs.getString("bot_1_name", null)
         try {
             // Старый формат хранения токена (открытым текстом), но платформа уже Telegram
             file.writeText("""[{"id":1,"name":"Test","token":"$token","platform":"telegram"}]""")
@@ -58,6 +61,11 @@ class TokenCryptoTest {
             assertEquals(token, BotDataManager.loadBots(context).single().token)
         } finally {
             if (backup != null) file.writeText(backup) else file.delete()
+            prefs.edit().apply {
+                if (originalLegacyToken == null) remove("bot_1_token") else putString("bot_1_token", originalLegacyToken)
+                if (originalActiveIds == null) remove("active_bot_ids") else putString("active_bot_ids", originalActiveIds)
+                if (originalBotName == null) remove("bot_1_name") else putString("bot_1_name", originalBotName)
+            }.commit()
         }
     }
 }
