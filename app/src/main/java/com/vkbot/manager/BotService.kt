@@ -171,7 +171,14 @@ class BotService : Service() {
         botJob = serviceScope.launch {
             try {
                 isRunning = true
-                addLog("✅ Инициализация BotBrain...")
+                addLog("🧠 Kiro Brain 4.0: основной движок ответов")
+                addLog("ℹ️ Старый BotBrain пока загружается для совместимости команд и настроек")
+                val archiveReady = File(filesDir, "kiro_answer_archive_v1.txt").isFile
+                val textReady = File(filesDir, "kiro_replies_v1.txt").isFile &&
+                    File(filesDir, "kiro_dialogs_v1.txt").isFile
+                if (!archiveReady && !textReady) {
+                    addLog("⚠️ Kiro Brain: отдельная база не импортирована. Ответы из старой базы не используются.")
+                }
                 botBrain = BotBrain(this@BotService).apply {
                     isUnansweredLogEnabled = { SettingsManager.isUnansweredLogEnabled }
                     aiResponder = { m, turns ->
@@ -287,6 +294,69 @@ class BotService : Service() {
         updateStatusNotification()
     } }
 
+    // Kiro Brain is the default reply engine in the 4.0 development branch.
+    // Legacy engine remains available only through an explicit rollback preference.
+    private val experimentalBrains = ConcurrentHashMap<Int, com.vkbot.manager.botbrain.independent.KiroBrainSwitch>()
+
+    // Separate opt-in archive: a prevalidated KIRO-ANSWER-ARCHIVE/1 file.
+    // The original answer.txt is never read or modified by this route.
+    private val experimentalArchives =
+        ConcurrentHashMap<Int, com.vkbot.manager.botbrain.independent.KiroArchiveSwitch>()
+    private val experimentalArchiveVersions = ConcurrentHashMap<Int, Pair<Long, Long>>()
+
+    private fun experimentalArchiveReply(botId: Int, sessionId: Long, text: String): com.vkbot.manager.botbrain.independent.KiroArchiveConversation.Reply? {
+        val archive = File(filesDir, "kiro_answer_archive_v1.txt")
+        if (!archive.isFile || archive.length() > 8L * 1024 * 1024) {
+            synchronized(experimentalArchives) {
+                experimentalArchives.remove(botId)
+                experimentalArchiveVersions.remove(botId)
+            }
+            return null
+        }
+        val version = archive.lastModified() to archive.length()
+        val engine = synchronized(experimentalArchives) {
+            if (experimentalArchiveVersions[botId] != version || experimentalArchives[botId] == null) {
+                val rows = try {
+                    com.vkbot.manager.botbrain.independent.KiroAnswerArchive.parse(
+                        archive.readText(Charsets.UTF_8)
+                    )
+                } catch (_: java.io.IOException) {
+                    experimentalArchives.remove(botId)
+                    experimentalArchiveVersions.remove(botId)
+                    return null
+                } catch (_: IllegalArgumentException) {
+                    experimentalArchives.remove(botId)
+                    experimentalArchiveVersions.remove(botId)
+                    return null
+                }
+                experimentalArchives[botId] = com.vkbot.manager.botbrain.independent.KiroArchiveSwitch(rows)
+                experimentalArchiveVersions[botId] = version
+            }
+            experimentalArchives.getValue(botId)
+        }
+        return engine.replyRich(sessionId, text)
+    }
+
+    private fun experimentalReply(botId: Int, chatId: Long, text: String): String? {
+        if (!sharedPrefs.getBoolean("kiro_independent_engine_experimental", true)) return null
+        val switch = experimentalBrains[botId] ?: synchronized(experimentalBrains) {
+            experimentalBrains[botId] ?: run {
+                val replyFile = File(filesDir, "kiro_replies_v1.txt")
+                val dialogFile = File(filesDir, "kiro_dialogs_v1.txt")
+                if (!replyFile.isFile || !dialogFile.isFile) return null
+                val bundle = com.vkbot.manager.botbrain.independent.KiroBrainBundle.load(
+                    replyFile.readText(Charsets.UTF_8),
+                    dialogFile.readText(Charsets.UTF_8)
+                )
+                com.vkbot.manager.botbrain.independent.KiroBrainSwitch(bundle).also {
+                    it.setEnabled(true)
+                    experimentalBrains[botId] = it
+                }
+            }
+        }
+        return switch.reply(chatId, text)
+    }
+
     private fun processSmartMessage(message: Map<String, Any>, botId: Int): Map<String, Any>? {
         return try {
             val text = message["text"] as? String ?: ""
@@ -323,6 +393,28 @@ class BotService : Service() {
             // Беседа/группа: сообщение пришло не в личку (адресат ≠ автор)
             val peerId = (message["peer_id"] as? Number)?.toString()
             val isGroupChat = peerId != null && peerId != fromId
+            // Keep existing command, spam, group and attachment checks above this point.
+            // The new engine uses only separate, user-provided KIRO-* files.
+            if (sharedPrefs.getBoolean("kiro_independent_engine_experimental", true)) {
+                val isolatedChatId = (message["peer_id"] as? Number)?.toLong() ?: fromId.toLong()
+                // Group users get separate dialog contexts; private chats keep chat identity.
+                val sessionId = if (isGroupChat) {
+                    (isolatedChatId * 31L) xor fromId.toLong()
+                } else isolatedChatId
+                val archiveMode = File(filesDir, "kiro_answer_archive_v1.txt").isFile
+                val rich = if (archiveMode) experimentalArchiveReply(botId, sessionId, text) else null
+                val independent = if (archiveMode) rich?.text else experimentalReply(botId, sessionId, text)
+                if (independent != null && (independent.isNotBlank() || rich?.attachments?.isNotEmpty() == true)) {
+                    val answered = sharedPrefs.getLong("bot_${botId}_answered", 0)
+                    sharedPrefs.edit { putLong("bot_${botId}_answered", answered + 1) }
+                    RecentDialog.add(this, authorName, text, independent.ifBlank { "📎" })
+                    // TelegramBot already handles Attachment URLs and VK legacy links.
+                    val media = rich?.attachments.orEmpty().map { com.vkbot.manager.botbrain.Attachment(it) }
+                    return mapOf("text" to independent, "attachments" to media)
+                }
+                // Do not silently use legacy answers if Kiro Brain has no matching rule.
+                return null
+            }
             val response = botBrain?.processMessage(BotMessage(text, fromId, authorName, isGroupChat = isGroupChat, chatId = peerId.orEmpty()))
             if (response != null && !response.isEmpty) {
                 val currentAnswered = sharedPrefs.getLong("bot_${botId}_answered", 0)
