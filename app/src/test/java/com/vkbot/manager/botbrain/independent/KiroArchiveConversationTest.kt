@@ -61,7 +61,7 @@ class KiroArchiveConversationTest {
     }
 
     @Test fun punctuationOnlyExactRuleDoesNotShadowOtherMessages() {
-        val rows = KiroAnswerArchive.importLegacy("!!!|неправильно\\n*|универсальный")
+        val rows = KiroAnswerArchive.importLegacy("!!!|неправильно\n*|универсальный")
         val engine = KiroArchiveConversation(rows)
         assertEquals("универсальный", engine.respond("?!"))
         assertEquals("универсальный", engine.respond("обычный текст"))
