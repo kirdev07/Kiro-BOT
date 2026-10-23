@@ -39,7 +39,11 @@ internal object KiroArchiveAudit {
             if (badLimit) invalidLimits++
             if (empty) emptyFields++
             if (!seen.add(row.question.trim().lowercase() to row.answer.trim().lowercase())) duplicates++
-            if (!hasMedia && !hasPattern && !empty && !badLimit) ready++
+            val validMedia = KiroSafeAttachments.parse(row.attachments) != null
+            val supportedPattern = !row.question.startsWith("regex:", ignoreCase = true) &&
+                (!row.question.contains("*") ||
+                    (row.question.length <= 2048 && row.question.count { it == '*' } <= 16))
+            if (!empty && !badLimit && validMedia && supportedPattern) ready++
         }
         return Report(rows.size, ready, media, patterns, contextual, repeatLimits,
             emptyFields, invalidLimits, duplicates)
