@@ -5,6 +5,14 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class KiroArchivePerformanceTest {
+    @Test fun wildcardRulesKeepOriginalOrderAcrossBuckets() {
+        val rows = listOf(
+            KiroAnswerArchive.Row(1, "*мир", "первый", "", "", "", "", ""),
+            KiroAnswerArchive.Row(2, "добрый*", "второй", "", "", "", "", "")
+        )
+        assertEquals("первый", KiroArchiveSwitch(rows).reply(1L, "добрый мир"))
+    }
+
     @Test fun fifteenThousandRowsKeepIndependentChatState() {
         val rows = (1..15000).map { i ->
             KiroAnswerArchive.Row(i, "вопрос $i", "ответ $i", "", "", "", "", "")
