@@ -51,3 +51,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Run Android JVM unit tests
         run: bash ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
+      - name: Assemble unsigned-for-release debug APK
+        run: bash ./gradlew :app:assembleDebug --no-daemon --stacktrace
+      - name: Upload experimental debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiro-bot-experimental-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
