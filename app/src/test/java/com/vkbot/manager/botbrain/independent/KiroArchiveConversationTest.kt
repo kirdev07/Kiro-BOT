@@ -5,6 +5,22 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class KiroArchiveConversationTest {
+    @Test fun sendsMediaOnlyReplyWithoutInventingText() {
+        val engine = KiroArchiveConversation(KiroAnswerArchive.importLegacy(
+            "фото||https://example.com/image.jpg"
+        ))
+        val reply = engine.respondRich("фото")
+        assertEquals("", reply?.text)
+        assertEquals(listOf("https://example.com/image.jpg"), reply?.attachments)
+    }
+
+    @Test fun rejectsInvalidMediaOnlyReply() {
+        val engine = KiroArchiveConversation(KiroAnswerArchive.importLegacy(
+            "фото||file:///etc/passwd"
+        ))
+        assertNull(engine.respondRich("фото"))
+    }
+
     @Test fun contextGatesFollowUpAndTransitions() {
         val rows = KiroAnswerArchive.importLegacy(
             "привет|здравствуй|||||greeted\nкак дела|отлично||||greeted|"
