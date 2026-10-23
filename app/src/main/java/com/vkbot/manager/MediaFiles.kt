@@ -3,6 +3,8 @@ package com.vkbot.manager
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.InetAddress
+import java.net.URI
 import java.net.URL
 
 /** Скачанный медиафайл. [contentType] — настоящий тип (по содержимому, если сайт прислал неточный). */
@@ -50,6 +52,7 @@ object MediaFiles {
     private fun getOrThrow(url: String, maxBytes: Long): HttpResult {
         var current = url
         repeat(MAX_REDIRECTS + 1) {
+            validatePublicUrl(current)
             val connection = URL(current).openConnection() as HttpURLConnection
             try {
                 connection.connectTimeout = TIMEOUT_MS
@@ -84,6 +87,29 @@ object MediaFiles {
             }
         }
         throw IOException("слишком много перенаправлений")
+    }
+
+    /**
+     * Reject local and private network destinations, including redirected URLs.
+     * This is a defense-in-depth check; DNS rebinding remains a transport-level concern.
+     */
+    private fun validatePublicUrl(value: String) {
+        val uri = try { URI(value) } catch (_: Exception) { throw IOException("некорректный адрес") }
+        if (uri.scheme?.lowercase() !in setOf("http", "https") ||
+            uri.host.isNullOrBlank() || uri.userInfo != null) {
+            throw IOException("недопустимый адрес")
+        }
+        val host = uri.host.lowercase().trimEnd('.')
+        if (host == "localhost" || host.endsWith(".localhost") ||
+            host.endsWith(".local") || host.endsWith(".internal")) {
+            throw IOException("локальные адреса запрещены")
+        }
+        val addresses = InetAddress.getAllByName(host)
+        if (addresses.any { address ->
+                address.isAnyLocalAddress || address.isLoopbackAddress ||
+                    address.isLinkLocalAddress || address.isSiteLocalAddress ||
+                    address.isMulticastAddress
+            }) throw IOException("частные сетевые адреса запрещены")
     }
 
     /** Тип картинки по первым байтам файла или null, если это не картинка. */
