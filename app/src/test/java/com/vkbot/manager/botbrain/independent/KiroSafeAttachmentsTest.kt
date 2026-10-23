@@ -47,4 +47,19 @@ class KiroSafeAttachmentsTest {
         )
     }
 
+    @Test fun blocksIpv6AndNumericAliases() {
+        val forbidden = listOf(
+            "https://[::1]/a.jpg",
+            "https://[::ffff:127.0.0.1]/a.jpg",
+            "https://2130706433/a.jpg",
+            "https://0x7f000001/a.jpg",
+            "https://127.1/a.jpg",
+            "https://0177.0.0.1/a.jpg",
+            "https://10.0.0.1/a.jpg"
+        )
+        forbidden.forEach { url ->
+            assertNull("Unexpectedly accepted: $url", KiroSafeAttachments.parse(url))
+        }
+    }
+
 }
