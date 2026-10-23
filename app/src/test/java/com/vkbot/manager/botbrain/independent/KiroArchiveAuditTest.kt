@@ -48,4 +48,10 @@ class KiroArchiveAuditTest {
         assertEquals(0, KiroArchiveAudit.inspect(rows).duplicatePairs)
     }
 
+    @Test fun wildcardOnlyRuleIsSearchable() {
+        val rows = KiroAnswerArchive.importLegacy("*|универсальный ответ")
+        assertEquals(1, KiroArchiveAudit.inspect(rows).ready)
+        assertEquals("универсальный ответ", KiroArchiveConversation(rows).respond("любой вопрос"))
+    }
+
 }
