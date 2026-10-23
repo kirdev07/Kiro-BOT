@@ -9,7 +9,10 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
         it.question.isNotBlank() && it.answer.isNotBlank() &&
             it.attachments.isBlank() && !it.question.contains("*") &&
             !it.question.startsWith("regex:", ignoreCase = true)
-    }.groupBy { KiroTextPreparation.words(it.question) }
+    }.groupBy { KiroTextPreparation.words(decodeLegacyText(it.question)) }
+
+    private fun decodeLegacyText(value: String): String =
+        value.replace("<br>", "\\n").replace("<pipe>", "|")
 
     fun find(message: String, context: String, allowed: (KiroAnswerArchive.Row) -> Boolean): KiroAnswerArchive.Row? {
         val tokens = KiroTextPreparation.words(message)
