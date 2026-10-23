@@ -41,3 +41,30 @@ Record in a separate audit table for each component: Kiro Bot path, upstream pat
 > **Происхождение:** Kiro Bot развивался с использованием компонентов и идей проекта VK iHA bot / FP iHA BOT (drfailov и другие участники). Оригинальным авторам принадлежат права на их исходный код и материалы. KirDev отвечает за собственные изменения, интерфейс и новые функции. Проект не является официальной версией FP iHA BOT. Условия распространения унаследованных компонентов определяются их исходными лицензиями или разрешениями правообладателей.
 
 **Important:** Do not publish the suggested text as the sole legal fix: determine actual licensing rights first.
+
+## Public-source verification — 2026-10-23
+
+### Verified from publicly accessible sources
+
+- Official GitHub repository: https://github.com/drfailov/FP_iHA_bot — public, includes Android-app sources and historical materials. Public access alone does **not** grant a redistribution or derivative-work license.
+- Original project's Google Play listing: https://play.google.com/store/apps/details?id=com.fsoft.ihabot — identifies FP iHA bot as a Telegram bot running on Android and links to the same public GitHub source. This supports attribution and project identity, **not** a license grant.
+- GitHub's licensing guidance: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository — absent a license, default copyright restrictions generally apply.
+
+### Not verified / outstanding
+
+- No specific license grant authorizing KirDev to redistribute or adapt the historical VK iHA bot engine has been established by this review. The historical Bitbucket source's license/permissions remain unverified.
+- No written permission from the relevant upstream rights holders is on record.
+- Exact copied/adapted code portions and their licenses have not been conclusively established at file/commit level.
+- The response database's original authorship and redistribution rights remain unverified; see ANSWER_DATABASE_PROVENANCE_AUDIT.md.
+- The fact that the upstream code is public, that Kiro Bot uses a different name/interface, or that AI tools assisted rewriting does **not** settle derivative-work rights.
+
+### Required release decision
+
+**Status: BLOCKED FOR NEW PUBLIC DISTRIBUTION of disputed components until rights are documented or the components are independently replaced.**
+
+1. Ask the upstream author(s) for written permission covering modification, redistribution, source publication and APK distribution, including the relevant response data, or obtain the applicable original license text.
+2. Record the scope of permission (which versions, files, media/database, attribution and conditions) in this document, without exposing private correspondence.
+3. If permissions cannot be obtained, replace disputed implementations and data with independently authored materials, retaining evidence of separation and test coverage.
+4. Review all third-party dependencies and notices before a release.
+
+This review is a factual status record, not a legal opinion or claim that permission has already been granted.
