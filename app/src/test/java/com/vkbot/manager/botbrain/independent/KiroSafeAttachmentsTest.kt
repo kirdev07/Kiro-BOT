@@ -62,4 +62,17 @@ class KiroSafeAttachmentsTest {
         }
     }
 
+    @Test fun rejectsNonstandardPortsAndPrivateDnsSuffixes() {
+        val forbidden = listOf(
+            "https://example.com:8080/image.jpg",
+            "https://example.com:8443/image.jpg",
+            "https://router.home.arpa/image.jpg",
+            "https://home.arpa/image.jpg",
+            "https://internal/image.jpg"
+        )
+        forbidden.forEach { assertNull("Unexpectedly accepted: $it", KiroSafeAttachments.parse(it)) }
+        assertEquals(listOf("https://example.com:443/image.jpg"),
+            KiroSafeAttachments.parse("https://example.com:443/image.jpg"))
+    }
+
 }
