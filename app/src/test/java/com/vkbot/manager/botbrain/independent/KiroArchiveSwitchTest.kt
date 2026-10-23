@@ -41,6 +41,16 @@ class KiroArchiveSwitchTest {
         assertEquals("хорошо", router.reply(202L, "как дела"))
     }
 
+    @Test fun migratedArchiveRepliesAcrossLargeDataset() {
+        val legacy = (1..14_993).joinToString("\n") { n -> "тестовая фраза номер $n|ответ номер $n" }
+        val archive = KiroAnswerArchive.export(KiroAnswerArchive.importLegacy(legacy))
+        val engine = KiroArchiveSwitch(KiroAnswerArchive.parse(archive))
+        assertEquals("ответ номер 1", engine.reply(101L, "тестовая фраза номер 1"))
+        assertEquals("ответ номер 7497", engine.reply(101L, "тестовая фраза номер 7497"))
+        assertEquals("ответ номер 14993", engine.reply(202L, "тестовая фраза номер 14993"))
+        assertNull(engine.reply(101L, "совершенно неизвестная фраза"))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsZeroSessionLimit() {
         KiroArchiveSwitch(rows, maxSessions = 0)
