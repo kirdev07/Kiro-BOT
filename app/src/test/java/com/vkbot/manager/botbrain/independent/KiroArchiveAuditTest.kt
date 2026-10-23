@@ -32,4 +32,11 @@ class KiroArchiveAuditTest {
         assertEquals(2, report.invalidLimits)
         assertEquals(0, report.ready)
     }
+    @Test fun mediaOnlyRowIsReadyButUnsearchableRowIsNot() {
+        val rows = KiroAnswerArchive.importLegacy("фото||https://example.com/a.jpg\n!!!|ответ")
+        val report = KiroArchiveAudit.inspect(rows)
+        assertEquals(2, report.total)
+        assertEquals(1, report.ready)
+        assertEquals(1, report.media)
+    }
 }
