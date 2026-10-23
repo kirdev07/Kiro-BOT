@@ -15,7 +15,7 @@ internal object KiroArchiveAudit {
     )
 
     fun inspect(rows: List<KiroAnswerArchive.Row>): Report {
-        val seen = HashSet<Pair<String, String>>()
+        val seen = HashSet<List<String>>()
         var ready = 0
         var media = 0
         var patterns = 0
@@ -38,7 +38,14 @@ internal object KiroArchiveAudit {
             if (limit.isNotEmpty() && limit != "0") repeatLimits++
             if (badLimit) invalidLimits++
             if (empty) emptyFields++
-            if (!seen.add(row.question.trim().lowercase() to row.answer.trim().lowercase())) duplicates++
+            if (!seen.add(listOf(
+                row.question.trim().lowercase(),
+                row.answer.trim(),
+                row.attachments.trim(),
+                row.repetitionLimit.trim(),
+                row.requiredContext.trim().lowercase(),
+                row.resultContext.trim().lowercase()
+            ))) duplicates++
             val validMedia = KiroSafeAttachments.parse(row.attachments) != null
             val supportedPattern = !row.question.startsWith("regex:", ignoreCase = true) &&
                 (!row.question.contains("*") ||
