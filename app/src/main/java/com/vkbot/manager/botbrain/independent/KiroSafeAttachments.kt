@@ -28,7 +28,11 @@ internal object KiroSafeAttachments {
             (first == 192 && second == 168) ||
             (first == 169 && second == 254) ||
             (first == 100 && second in 64..127) ||
-            (first == 198 && second in 18..19)
+            (first == 198 && second in 18..19) ||
+            (first == 192 && second == 0 && octets[2].toInt() == 0) ||
+            (first == 192 && second == 0 && octets[2].toInt() == 2) ||
+            (first == 198 && second == 51 && octets[2].toInt() == 100) ||
+            (first == 203 && second == 0 && octets[2].toInt() == 113)
     }
 
     fun parse(value: String): List<String>? {
