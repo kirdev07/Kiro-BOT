@@ -13,6 +13,7 @@ internal object KiroSafeAttachments {
             h.endsWith(".local") || h.endsWith(".internal")) return true
         // Reject IPv6 literals (including IPv4-mapped IPv6) until transport validation exists.
         if (h.contains(':')) return true
+        if (h == "test" || h.endsWith(".test") || h == "invalid" || h.endsWith(".invalid")) return true
         // Numeric aliases such as 2130706433 and 0x7f000001 are unsafe.
         if (h.all { it.isDigit() } || h.startsWith("0x")) return true
         val octets = h.split('.')
