@@ -54,7 +54,9 @@ internal object KiroSafeAttachments {
                 uri.port != -1 && uri.port != 443 ||
                 uri.userInfo != null || uri.fragment != null) return null
             val host = uri.host.lowercase().trimEnd('.')
-            if (isLocalHost(host)) return null
+            if (host.isBlank() || !host.contains('.') || host.endsWith(".onion") ||
+                host.endsWith(".arpa") || host.endsWith(".example") || host == "example" ||
+                isLocalHost(host)) return null
             result.add(item)
         }
         return result
