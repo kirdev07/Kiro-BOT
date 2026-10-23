@@ -5,12 +5,7 @@ package com.vkbot.manager.botbrain.independent
  * Unsupported attachments and patterns are deliberately not executed.
  */
 internal class KiroArchiveConversation(rows: List<KiroAnswerArchive.Row>) {
-    private val eligible = rows.filter {
-        it.question.isNotBlank() && it.answer.isNotBlank() &&
-            it.attachments.isBlank() &&
-            !it.question.contains("*") &&
-            !it.question.startsWith("regex:", ignoreCase = true)
-    }
+    private val index = KiroArchiveReplyIndex(rows)
     private var context = ""
     private val usage = mutableMapOf<Int, Int>()
     private var lastLine: Int? = null
@@ -19,15 +14,9 @@ internal class KiroArchiveConversation(rows: List<KiroAnswerArchive.Row>) {
     @Synchronized
     fun respond(message: String): String? {
         if (message.isBlank()) return null
-        val query = KiroTextPreparation.words(message)
-        if (query.isEmpty()) return null
-        val candidate = eligible.firstOrNull { row ->
-            val required = row.requiredContext.trim()
-            val matchesContext = required.isEmpty() || required.equals(context, ignoreCase = true)
-            val matchesQuestion = KiroTextPreparation.words(row.question) == query
+        val candidate = index.find(message, context) { row ->
             val limit = row.repetitionLimit.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
-            val repeatAllowed = limit == 0 || row.lineNumber != lastLine || consecutive < limit
-            matchesContext && matchesQuestion && repeatAllowed
+            limit == 0 || row.lineNumber != lastLine || consecutive < limit
         } ?: return null
 
         usage[candidate.lineNumber] = (usage[candidate.lineNumber] ?: 0) + 1
