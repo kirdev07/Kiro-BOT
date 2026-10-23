@@ -26,9 +26,13 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
     }
 
     // Literal-leading masks only need testing when the first normalized character matches.
-    private val masksByFirstChar = masks.filter { !KiroTextPreparation.normalize(decodeLegacyText(it.question)).startsWith("*") }
-        .groupBy { KiroTextPreparation.normalize(decodeLegacyText(it.question)).first() }
-    private val leadingStarMasks = masks.filter { KiroTextPreparation.normalize(decodeLegacyText(it.question)).startsWith("*") }
+    private val indexedMasks = masks.withIndex().toList()
+    private val masksByFirstChar = indexedMasks.filter {
+        !KiroTextPreparation.normalize(decodeLegacyText(it.value.question)).startsWith("*")
+    }.groupBy { KiroTextPreparation.normalize(decodeLegacyText(it.value.question)).first() }
+    private val leadingStarMasks = indexedMasks.filter {
+        KiroTextPreparation.normalize(decodeLegacyText(it.value.question)).startsWith("*")
+    }
 
     fun find(message: String, context: String, allowed: (KiroAnswerArchive.Row) -> Boolean): KiroAnswerArchive.Row? {
         val tokens = KiroTextPreparation.words(message)
@@ -43,7 +47,7 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
         val first = KiroTextPreparation.normalize(message).firstOrNull()
         val possibleMasks = if (first == null) leadingStarMasks else
             masksByFirstChar[first].orEmpty() + leadingStarMasks
-        val matches = possibleMasks.filter { row ->
+        val matches = possibleMasks.sortedBy { it.index }.map { it.value }.filter { row ->
             (row.requiredContext.isBlank() || row.requiredContext.trim().equals(context, ignoreCase = true)) &&
                 allowed(row) && KiroSafeMask.matches(decodeLegacyText(row.question), message)
         }
