@@ -36,7 +36,7 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
 
     fun find(message: String, context: String, allowed: (KiroAnswerArchive.Row) -> Boolean): KiroAnswerArchive.Row? {
         val tokens = KiroTextPreparation.words(message)
-        if (tokens.isEmpty()) return null
+        if (tokens.isEmpty() && message.isBlank()) return null
         val candidates = entries[tokens].orEmpty().filter { row ->
             (row.requiredContext.isBlank() || row.requiredContext.trim().equals(context, ignoreCase = true)) &&
                 allowed(row)
