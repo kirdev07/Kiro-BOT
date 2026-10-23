@@ -36,6 +36,8 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
     }
 
     fun find(message: String, context: String, allowed: (KiroAnswerArchive.Row) -> Boolean): KiroAnswerArchive.Row? {
+        // Reject oversized untrusted messages before normalization or token allocation.
+        if (message.length > 2048) return null
         val tokens = KiroTextPreparation.words(message)
         if (tokens.isEmpty() && message.isBlank()) return null
         val candidates = entries[tokens].orEmpty().filter { row ->
