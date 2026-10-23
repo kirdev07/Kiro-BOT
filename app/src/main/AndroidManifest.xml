@@ -46,6 +46,8 @@
             </intent-filter>
         </activity>
         
+        <activity android:name=".KiroBrainImportActivity" android:exported="false" />
+
         <service
             android:name=".BotService"
             android:enabled="true"
