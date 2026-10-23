@@ -75,4 +75,13 @@ class KiroSafeAttachmentsTest {
             KiroSafeAttachments.parse("https://example.com:443/image.jpg"))
     }
 
+    @Test fun rejectsAdditionalReservedIpv4Ranges() {
+        listOf(
+            "https://192.0.0.9/a.jpg",
+            "https://192.0.2.1/a.jpg",
+            "https://198.51.100.1/a.jpg",
+            "https://203.0.113.1/a.jpg"
+        ).forEach { assertNull("Unexpectedly accepted: $it", KiroSafeAttachments.parse(it)) }
+    }
+
 }
