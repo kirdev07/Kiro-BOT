@@ -314,8 +314,12 @@ class BotService : Service() {
                         archive.readText(Charsets.UTF_8)
                     )
                 } catch (_: java.io.IOException) {
+                    experimentalArchives.remove(botId)
+                    experimentalArchiveVersions.remove(botId)
                     return null
                 } catch (_: IllegalArgumentException) {
+                    experimentalArchives.remove(botId)
+                    experimentalArchiveVersions.remove(botId)
                     return null
                 }
                 experimentalArchives[botId] = com.vkbot.manager.botbrain.independent.KiroArchiveSwitch(rows)
