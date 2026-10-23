@@ -45,6 +45,12 @@ class KiroArchiveSwitchIntegrationTest {
         assertEquals("особый", contextual.reply(2L, "привет мир"))
     }
 
+    @Test fun oversizedIncomingMessageIsRejectedBeforeMatching() {
+        val engine = KiroArchiveSwitch(KiroAnswerArchive.importLegacy("*|ответ"))
+        assertNull(engine.reply(7L, "а".repeat(2049)))
+        assertEquals("ответ", engine.reply(7L, "привет"))
+    }
+
     @Test fun leastRecentlyUsedSessionEvictionResetsOldestOnly() {
         val engine = KiroArchiveSwitch(KiroAnswerArchive.importLegacy("привет|ответ||1"), maxSessions = 2)
         assertEquals("ответ", engine.reply(1L, "привет"))
