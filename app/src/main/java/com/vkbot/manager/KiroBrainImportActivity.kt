@@ -40,7 +40,7 @@ class KiroBrainImportActivity : AppCompatActivity() {
             val audit = KiroArchiveAudit.inspect(rows)
             MaterialAlertDialogBuilder(this)
                 .setTitle("Предпросмотр импорта")
-                .setMessage("Всего: ${audit.total}\nГотовы к текстовому поиску: ${audit.ready}\nС вложениями: ${audit.media}\nС шаблонами: ${audit.patterns}\nС контекстом: ${audit.contextual}\nС лимитами повторов: ${audit.repeatLimits}\nПустые поля: ${audit.emptyFields}\nНекорректные лимиты: ${audit.invalidLimits}\nПовторы пар вопрос/ответ: ${audit.duplicatePairs}\n\nКатегории пересекаются. Вложения и шаблоны сохраняются, но не исполняются.\n\nИмпортировать без изменения исходного answer.txt?")
+                .setMessage("Всего: ${audit.total}\nГотовы к текстовому поиску: ${audit.ready}\nС вложениями: ${audit.media}\nС шаблонами: ${audit.patterns}\nС контекстом: ${audit.contextual}\nС лимитами повторов: ${audit.repeatLimits}\nПустые поля: ${audit.emptyFields}\nНекорректные лимиты: ${audit.invalidLimits}\nПовторы пар вопрос/ответ: ${audit.duplicatePairs}\n\nКатегории пересекаются. Простые шаблоны * и безопасные ссылки вложений поддерживаются экспериментально; regex-правила не исполняются.\n\nИмпортировать без изменения исходного answer.txt?")
                 .setNegativeButton("Отмена", null)
                 .setPositiveButton("Импортировать") { _, _ ->
                     try {
