@@ -99,6 +99,9 @@ class AndroidFileManager(private val context: Context) {
         }
     }
 
+    /** Source for read-only Kiro Brain migration; never edit through this accessor. */
+    fun legacyAnswerFile(): File = databaseFile
+
     fun loadAnswerDatabase(): List<AnswerElement> {
         val answers = mutableListOf<AnswerElement>()
         val uniqueEntries = mutableSetOf<String>()
