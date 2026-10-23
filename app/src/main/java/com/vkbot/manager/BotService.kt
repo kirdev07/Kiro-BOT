@@ -386,11 +386,11 @@ class BotService : Service() {
                 } else isolatedChatId
                 val archiveMode = File(filesDir, "kiro_answer_archive_v1.txt").isFile
                 val rich = if (archiveMode) experimentalArchiveReply(botId, sessionId, text) else null
-                val independent = rich?.text ?: if (!archiveMode) experimentalReply(botId, sessionId, text) else null
-                if (independent != null) {
+                val independent = if (archiveMode) rich?.text else experimentalReply(botId, sessionId, text)
+                if (independent != null && (independent.isNotBlank() || rich?.attachments?.isNotEmpty() == true)) {
                     val answered = sharedPrefs.getLong("bot_${botId}_answered", 0)
                     sharedPrefs.edit { putLong("bot_${botId}_answered", answered + 1) }
-                    RecentDialog.add(this, authorName, text, independent)
+                    RecentDialog.add(this, authorName, text, independent.ifBlank { "📎" })
                     // TelegramBot already handles Attachment URLs and VK legacy links.
                     val media = rich?.attachments.orEmpty().map { com.vkbot.manager.botbrain.Attachment(it) }
                     return mapOf("text" to independent, "attachments" to media)
