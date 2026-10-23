@@ -54,4 +54,10 @@ class KiroArchiveConversationTest {
         ))
         assertEquals("safe", engine.respond("привет"))
     }
+    @Test fun wildcardCanReplyToPunctuationOnlyMessage() {
+        val engine = KiroArchiveConversation(KiroAnswerArchive.importLegacy("*|ответ"))
+        assertEquals("ответ", engine.respond("?!"))
+        assertNull(engine.respond("   "))
+    }
+
 }
