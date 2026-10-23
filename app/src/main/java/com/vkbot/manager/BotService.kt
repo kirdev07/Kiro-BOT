@@ -200,11 +200,11 @@ class BotService : Service() {
                         addLog("⚠️ Kiro Brain: перенос базы не выполнен (${error.javaClass.simpleName})")
                     }
                 }
-                val archiveReady = File(filesDir, "kiro_answer_archive_v1.txt").isFile
+                val archiveReady = independentArchive.isFile
                 val textReady = File(filesDir, "kiro_replies_v1.txt").isFile &&
                     File(filesDir, "kiro_dialogs_v1.txt").isFile
                 if (archiveReady) {
-                    val archive = File(filesDir, "kiro_answer_archive_v1.txt")
+                    val archive = independentArchive
                     if (archive.length() > 8L * 1024 * 1024) {
                         addLog("⚠️ Kiro Brain: архив больше 8 МБ")
                     } else {
@@ -544,6 +544,11 @@ class BotService : Service() {
 
     private fun reloadDatabase() {
         if (isRunning) {
+            synchronized(experimentalArchives) {
+                experimentalArchives.clear()
+                experimentalArchiveVersions.clear()
+            }
+            synchronized(experimentalBrains) { experimentalBrains.clear() }
             serviceScope.launch(Dispatchers.IO) {
                 botBrain?.let { brain ->
                     brain.reloadDatabase()
@@ -559,6 +564,11 @@ class BotService : Service() {
         isRunning = false
         activeBots.values.forEach { it.stop() }
         activeBots.clear()
+        synchronized(experimentalArchives) {
+            experimentalArchives.clear()
+            experimentalArchiveVersions.clear()
+        }
+        synchronized(experimentalBrains) { experimentalBrains.clear() }
         runningTokens.clear()
         failedTokens.clear()
         saveStatsInBackground()
