@@ -10,6 +10,7 @@ internal class KiroArchiveConversation(private val index: KiroArchiveReplyIndex)
     private val usage = mutableMapOf<Int, Int>()
     private var lastLine: Int? = null
     private var consecutive = 0
+    private fun nextCount(value: Int): Int = if (value == Int.MAX_VALUE) value else value + 1
 
     data class Reply(val text: String, val attachments: List<String>)
 
@@ -24,8 +25,8 @@ internal class KiroArchiveConversation(private val index: KiroArchiveReplyIndex)
             limit == 0 || row.lineNumber != lastLine || consecutive < limit
         } ?: return null
 
-        usage[candidate.lineNumber] = (usage[candidate.lineNumber] ?: 0) + 1
-        consecutive = if (lastLine == candidate.lineNumber) (consecutive + 1).coerceAtLeast(1) else 1
+        usage[candidate.lineNumber] = nextCount(usage[candidate.lineNumber] ?: 0)
+        consecutive = if (lastLine == candidate.lineNumber) nextCount(consecutive) else 1
         lastLine = candidate.lineNumber
         if (candidate.resultContext.isNotBlank()) context = candidate.resultContext.trim()
         return Reply(candidate.answer.replace("<br>", "\n").replace("<pipe>", "|"),
