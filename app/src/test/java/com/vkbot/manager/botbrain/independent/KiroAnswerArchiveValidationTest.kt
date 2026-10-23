@@ -21,6 +21,12 @@ class KiroAnswerArchiveValidationTest {
         rejects("# KIRO-ANSWER-ARCHIVE/1\nabc\tq\ta\t\t\t\t\t")
     }
 
+    @Test fun rejectsDuplicateSourceLineIds() {
+        val rows = KiroAnswerArchive.importLegacy("один|первый\nдва|второй")
+        val archive = KiroAnswerArchive.export(listOf(rows[0], rows[0]))
+        rejects(archive)
+    }
+
     @Test fun rejectsCorruptEscapes() {
         rejects("# KIRO-ANSWER-ARCHIVE/1\n1\tq\\x\ta\t\t\t\t\t")
         rejects("# KIRO-ANSWER-ARCHIVE/1\n1\tq\\\ta\t\t\t\t\t")
