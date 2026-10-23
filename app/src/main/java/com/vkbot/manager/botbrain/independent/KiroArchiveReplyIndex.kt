@@ -2,7 +2,7 @@ package com.vkbot.manager.botbrain.independent
 
 /**
  * Fast, independent exact-match index for archived answers.
- * Patterns and media are kept in the archive, but not executed by this index.
+ * Supports safe wildcard masks and validated media; never executes regex rules.
  */
 internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
     private fun validLimit(row: KiroAnswerArchive.Row): Boolean {
@@ -25,6 +25,11 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
             it.question.length <= 2048 && it.question.count { c -> c == '*' } <= 16
     }
 
+    // Literal-leading masks only need testing when the first normalized character matches.
+    private val masksByFirstChar = masks.filter { !it.question.startsWith("*") }
+        .groupBy { KiroTextPreparation.normalize(decodeLegacyText(it.question)).first() }
+    private val leadingStarMasks = masks.filter { it.question.startsWith("*") }
+
     fun find(message: String, context: String, allowed: (KiroAnswerArchive.Row) -> Boolean): KiroAnswerArchive.Row? {
         val tokens = KiroTextPreparation.words(message)
         if (tokens.isEmpty()) return null
@@ -35,7 +40,10 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
         // Context-specific replies take priority over general replies.
         val exact = candidates.firstOrNull { it.requiredContext.isNotBlank() } ?: candidates.firstOrNull()
         if (exact != null) return exact
-        val matches = masks.filter { row ->
+        val first = KiroTextPreparation.normalize(message).firstOrNull()
+        val possibleMasks = if (first == null) leadingStarMasks else
+            masksByFirstChar[first].orEmpty() + leadingStarMasks
+        val matches = possibleMasks.filter { row ->
             (row.requiredContext.isBlank() || row.requiredContext.trim().equals(context, ignoreCase = true)) &&
                 allowed(row) && KiroSafeMask.matches(decodeLegacyText(row.question), message)
         }
