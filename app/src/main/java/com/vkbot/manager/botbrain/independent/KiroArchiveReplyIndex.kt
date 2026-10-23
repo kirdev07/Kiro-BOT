@@ -7,7 +7,7 @@ package com.vkbot.manager.botbrain.independent
 internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
     private val entries = rows.asSequence().filter {
         it.question.isNotBlank() && it.answer.isNotBlank() &&
-            it.attachments.isBlank() && !it.question.contains("*") &&
+            KiroSafeAttachments.parse(it.attachments) != null && !it.question.contains("*") &&
             !it.question.startsWith("regex:", ignoreCase = true)
     }.groupBy { KiroTextPreparation.words(decodeLegacyText(it.question)) }
 
@@ -16,7 +16,7 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
 
     private val masks = rows.filter {
         it.question.contains("*") && !it.question.startsWith("regex:", ignoreCase = true) &&
-            it.attachments.isBlank() && it.answer.isNotBlank() &&
+            KiroSafeAttachments.parse(it.attachments) != null && it.answer.isNotBlank() &&
             it.question.length <= 2048 && it.question.count { c -> c == '*' } <= 16
     }
 
