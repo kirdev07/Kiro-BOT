@@ -48,10 +48,15 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
         val first = KiroTextPreparation.normalize(message).firstOrNull()
         val possibleMasks = if (first == null) leadingStarMasks else
             masksByFirstChar[first].orEmpty() + leadingStarMasks
-        val matches = possibleMasks.sortedBy { it.index }.map { it.value }.filter { row ->
-            (row.requiredContext.isBlank() || row.requiredContext.trim().equals(context, ignoreCase = true)) &&
-                allowed(row) && KiroSafeMask.matches(decodeLegacyText(row.question), message)
+        var generalMatch: KiroAnswerArchive.Row? = null
+        for (indexed in possibleMasks.sortedBy { it.index }) {
+            val row = indexed.value
+            if (row.requiredContext.isNotBlank() &&
+                !row.requiredContext.trim().equals(context, ignoreCase = true)) continue
+            if (!allowed(row) || !KiroSafeMask.matches(decodeLegacyText(row.question), message)) continue
+            if (row.requiredContext.isNotBlank()) return row
+            if (generalMatch == null) generalMatch = row
         }
-        return matches.firstOrNull { it.requiredContext.isNotBlank() } ?: matches.firstOrNull()
+        return generalMatch
     }
 }
