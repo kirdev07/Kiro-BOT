@@ -6,7 +6,7 @@ internal class KiroArchiveSwitch(
     private val maxSessions: Int = 256
 ) {
     init { require(maxSessions > 0) }
-    private val records = rows.toList()
+    private val index = KiroArchiveReplyIndex(rows.toList())
     private val sessions = LinkedHashMap<Long, KiroArchiveConversation>(16, 0.75f, true)
 
     @Synchronized
@@ -15,7 +15,7 @@ internal class KiroArchiveSwitch(
     @Synchronized
     fun replyRich(sessionId: Long, message: String): KiroArchiveConversation.Reply? {
         if (message.isBlank()) return null
-        val session = sessions[sessionId] ?: KiroArchiveConversation(records).also {
+        val session = sessions[sessionId] ?: KiroArchiveConversation(index).also {
             if (sessions.size >= maxSessions) {
                 val oldest = sessions.keys.iterator()
                 if (oldest.hasNext()) { oldest.next(); oldest.remove() }
