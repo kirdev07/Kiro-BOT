@@ -11,7 +11,7 @@ internal class KiroArchiveReplyIndex(rows: List<KiroAnswerArchive.Row>) {
     }
 
     private val entries = rows.asSequence().filter {
-        it.question.isNotBlank() && KiroTextPreparation.words(it.question).isNotEmpty() &&
+        it.question.isNotBlank() && KiroTextPreparation.words(decodeLegacyText(it.question)).isNotEmpty() &&
             (it.answer.isNotBlank() || it.attachments.isNotBlank()) && validLimit(it) &&
             KiroSafeAttachments.parse(it.attachments) != null && !it.question.contains("*") &&
             !it.question.startsWith("regex:", ignoreCase = true)
