@@ -173,6 +173,33 @@ class BotService : Service() {
                 isRunning = true
                 addLog("🧠 Kiro Brain 4.0: основной движок ответов")
                 addLog("ℹ️ Старый BotBrain пока загружается для совместимости команд и настроек")
+                val independentArchive = File(filesDir, "kiro_answer_archive_v1.txt")
+                if (!independentArchive.isFile) {
+                    try {
+                        val legacy = com.vkbot.manager.botbrain.AndroidFileManager(this@BotService).legacyAnswerFile()
+                        if (legacy.isFile && legacy.length() in 1L..(8L * 1024 * 1024)) {
+                            val rows = com.vkbot.manager.botbrain.independent.KiroAnswerArchive.importLegacy(legacy.readText(Charsets.UTF_8))
+                            require(rows.isNotEmpty()) { "Empty legacy answer database" }
+                            val exported = com.vkbot.manager.botbrain.independent.KiroAnswerArchive.export(rows)
+                            require(exported.toByteArray(Charsets.UTF_8).size <= 8 * 1024 * 1024) { "Archive too large" }
+                            require(com.vkbot.manager.botbrain.independent.KiroAnswerArchive.parse(exported).size == rows.size) { "Archive validation failed" }
+                            val atomic = android.util.AtomicFile(independentArchive)
+                            val stream = atomic.startWrite()
+                            try {
+                                stream.write(exported.toByteArray(Charsets.UTF_8))
+                                atomic.finishWrite(stream)
+                                addLog("✅ Kiro Brain: автоматически перенесено ${rows.size} записей")
+                            } catch (error: Exception) {
+                                atomic.failWrite(stream)
+                                throw error
+                            }
+                        } else {
+                            addLog("⚠️ Kiro Brain: исходная база отсутствует или превышает 8 МБ")
+                        }
+                    } catch (error: Exception) {
+                        addLog("⚠️ Kiro Brain: перенос базы не выполнен (${error.javaClass.simpleName})")
+                    }
+                }
                 val archiveReady = File(filesDir, "kiro_answer_archive_v1.txt").isFile
                 val textReady = File(filesDir, "kiro_replies_v1.txt").isFile &&
                     File(filesDir, "kiro_dialogs_v1.txt").isFile
