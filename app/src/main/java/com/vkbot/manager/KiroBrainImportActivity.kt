@@ -14,7 +14,7 @@ import com.vkbot.manager.botbrain.independent.KiroAnswerArchive
 import com.vkbot.manager.botbrain.independent.KiroArchiveAudit
 import java.io.File
 
-/** Manual import only. Does not activate experimental replies or overwrite answer.txt. */
+/** Imports an independent archive used by the default Kiro Brain reply engine. Never overwrites answer.txt. */
 class KiroBrainImportActivity : AppCompatActivity() {
     private val chooseFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@registerForActivityResult
@@ -61,7 +61,7 @@ class KiroBrainImportActivity : AppCompatActivity() {
                             throw error
                         }
 
-                        Toast.makeText(this, "Архив сохранён. Экспериментальный движок не включён.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "Архив Kiro Brain сохранён. Новая база будет использоваться для ответов.", Toast.LENGTH_LONG).show()
                     } catch (e: Exception) {
                         Toast.makeText(this, "Ошибка сохранения: ${e.message}", Toast.LENGTH_LONG).show()
                     }
@@ -79,7 +79,7 @@ class KiroBrainImportActivity : AppCompatActivity() {
             setPadding(32, 40, 32, 24)
         }
         layout.addView(TextView(this).apply {
-            text = "Kiro Brain — импорт базы\n\nВыбери answer.txt или готовый архив. Сначала увидишь число записей и подтвердишь сохранение. Рабочая база Kiro Bot не меняется."
+            text = "Kiro Brain 4.0 — импорт базы\n\nВыбери answer.txt или готовый архив. Сначала увидишь число записей и подтвердишь сохранение. Рабочая база Kiro Bot не меняется."
             textSize = 18f
         })
         layout.addView(Button(this).apply {
