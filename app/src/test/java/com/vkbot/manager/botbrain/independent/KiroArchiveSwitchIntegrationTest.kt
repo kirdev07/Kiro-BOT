@@ -32,6 +32,19 @@ class KiroArchiveSwitchIntegrationTest {
         assertEquals("здравствуй", engine.reply(9L, "привет"))
     }
 
+    @Test fun wildcardCandidateMergePreservesArchivePriority() {
+        val rows = KiroAnswerArchive.importLegacy(
+            "*мир|общий ранний\nпривет*|общий поздний\nпривет*|контекстный||||ready|"
+        )
+        val engine = KiroArchiveSwitch(rows)
+        assertEquals("общий ранний", engine.reply(1L, "привет мир"))
+        val contextual = KiroArchiveSwitch(KiroAnswerArchive.importLegacy(
+            "старт|готово|||||ready\n*мир|общий\nпривет*|особый||||ready|"
+        ))
+        assertEquals("готово", contextual.reply(2L, "старт"))
+        assertEquals("особый", contextual.reply(2L, "привет мир"))
+    }
+
     @Test fun leastRecentlyUsedSessionEvictionResetsOldestOnly() {
         val engine = KiroArchiveSwitch(KiroAnswerArchive.importLegacy("привет|ответ||1"), maxSessions = 2)
         assertEquals("ответ", engine.reply(1L, "привет"))
