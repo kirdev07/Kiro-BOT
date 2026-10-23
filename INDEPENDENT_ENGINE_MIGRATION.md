@@ -51,3 +51,27 @@ Retain the user-facing Telegram functionality, current UI, settings, storage com
 - [ ] Obtain release sign-off.
 
 **Do not remove original attribution or claim that rights have been cleared.** Historical Git commits remain part of the repository and need separate review before distributing source snapshots.
+
+
+## Kiro Bot 4.0 cleanup and Fusion release gates (2026-10-23)
+
+**Keep for now:** the stable legacy response pipeline, existing settings and storage, Telegram routing, backup compatibility, and existing attribution. Do not remove any of these until replacement behavior and licensing are verified.
+
+**Candidates for consolidation (not yet approved for deletion):**
+- Parallel experimental engines (`KiroBrainSwitch`/`KiroConversationEngine` versus `KiroArchiveSwitch`): document which one will be the supported 4.0 entrypoint; migrate callers and tests before retiring either.
+- Duplicate answer-processing and text-normalization paths: compare semantics and migration fixtures before unifying.
+- Experimental import and archive utilities: keep import/export for compatibility, but move developer-only diagnostics away from release navigation after testing.
+- Unused resources, sample assets, obsolete dependencies, and legacy UI controls: inventory actual references and rights first; delete only with a verified replacement or proof of non-use.
+
+**Functional release gates:**
+1. Confirm latest Android unit-test run, including 15,000-row fixture and wildcard tests.
+2. Test real legacy `answer.txt` migration and verify all seven archive fields survive round-trip.
+3. Test malformed records, media-only replies, unsupported media, and network media handling; review SSRF and redirects in downloader before allowing imported URLs.
+4. Test import while bot is active, unchanged and same-length archives, independent chat contexts, session eviction, and cache reload.
+5. Test private/group routing, bot restarts, app upgrades, token storage, and permissions on a real Android device.
+6. Perform source/license inventory and confirm bundled answer corpus rights; remove or replace unlicensed material before distribution.
+7. Produce a signed beta APK, perform manual smoke tests, and obtain explicit approval before merging to `main`.
+
+**Fusion UI phase (only after functional gates):** adopt the KiroX Fusion monochrome/AMOLED visual language, minimal navigation, refined settings, subtle motion, and accessible high-refresh animations. Keep bot functionality and data formats unchanged during the visual redesign.
+
+**Current status:** this is a cleanup plan, not evidence that all checks passed or that any legacy file is safe to delete.
