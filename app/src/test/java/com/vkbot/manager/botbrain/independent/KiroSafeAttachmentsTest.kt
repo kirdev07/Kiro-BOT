@@ -84,4 +84,11 @@ class KiroSafeAttachmentsTest {
         ).forEach { assertNull("Unexpectedly accepted: $it", KiroSafeAttachments.parse(it)) }
     }
 
+    @Test fun rejectsReservedDnsZones() {
+        listOf("https://foo.test/image.jpg", "https://foo.invalid/image.jpg",
+            "https://test/image.jpg", "https://invalid/image.jpg").forEach {
+            assertNull("Unexpectedly accepted: $it", KiroSafeAttachments.parse(it))
+        }
+    }
+
 }
