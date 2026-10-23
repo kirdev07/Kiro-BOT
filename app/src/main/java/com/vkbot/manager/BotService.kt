@@ -171,7 +171,14 @@ class BotService : Service() {
         botJob = serviceScope.launch {
             try {
                 isRunning = true
-                addLog("✅ Инициализация BotBrain...")
+                addLog("🧠 Kiro Brain 4.0: основной движок ответов")
+                addLog("ℹ️ Старый BotBrain пока загружается для совместимости команд и настроек")
+                val archiveReady = File(filesDir, "kiro_answer_archive_v1.txt").isFile
+                val textReady = File(filesDir, "kiro_replies_v1.txt").isFile &&
+                    File(filesDir, "kiro_dialogs_v1.txt").isFile
+                if (!archiveReady && !textReady) {
+                    addLog("⚠️ Kiro Brain: отдельная база не импортирована. Ответы из старой базы не используются.")
+                }
                 botBrain = BotBrain(this@BotService).apply {
                     isUnansweredLogEnabled = { SettingsManager.isUnansweredLogEnabled }
                     aiResponder = { m, turns ->
@@ -287,8 +294,8 @@ class BotService : Service() {
         updateStatusNotification()
     } }
 
-    // Experimental engine: disabled by default. Files must be independently authored.
-    // Preference is intentionally not exposed in production UI before device validation.
+    // Kiro Brain is the default reply engine in the 4.0 development branch.
+    // Legacy engine remains available only through an explicit rollback preference.
     private val experimentalBrains = ConcurrentHashMap<Int, com.vkbot.manager.botbrain.independent.KiroBrainSwitch>()
 
     // Separate opt-in archive: a prevalidated KIRO-ANSWER-ARCHIVE/1 file.
@@ -331,7 +338,7 @@ class BotService : Service() {
     }
 
     private fun experimentalReply(botId: Int, chatId: Long, text: String): String? {
-        if (!sharedPrefs.getBoolean("kiro_independent_engine_experimental", false)) return null
+        if (!sharedPrefs.getBoolean("kiro_independent_engine_experimental", true)) return null
         val switch = experimentalBrains[botId] ?: synchronized(experimentalBrains) {
             experimentalBrains[botId] ?: run {
                 val replyFile = File(filesDir, "kiro_replies_v1.txt")
@@ -388,7 +395,7 @@ class BotService : Service() {
             val isGroupChat = peerId != null && peerId != fromId
             // Keep existing command, spam, group and attachment checks above this point.
             // The new engine uses only separate, user-provided KIRO-* files.
-            if (sharedPrefs.getBoolean("kiro_independent_engine_experimental", false)) {
+            if (sharedPrefs.getBoolean("kiro_independent_engine_experimental", true)) {
                 val isolatedChatId = (message["peer_id"] as? Number)?.toLong() ?: fromId.toLong()
                 // Group users get separate dialog contexts; private chats keep chat identity.
                 val sessionId = if (isGroupChat) {
@@ -405,7 +412,7 @@ class BotService : Service() {
                     val media = rich?.attachments.orEmpty().map { com.vkbot.manager.botbrain.Attachment(it) }
                     return mapOf("text" to independent, "attachments" to media)
                 }
-                // No legacy fallback while experimental engine is selected.
+                // Do not silently use legacy answers if Kiro Brain has no matching rule.
                 return null
             }
             val response = botBrain?.processMessage(BotMessage(text, fromId, authorName, isGroupChat = isGroupChat, chatId = peerId.orEmpty()))
