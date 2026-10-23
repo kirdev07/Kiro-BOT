@@ -44,9 +44,9 @@ object BotDataManager {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         try {
-            val file = File(context.filesDir, BOTS_FILE_NAME)
-            if (file.exists()) {
-                val jsonString = file.readText(Charsets.UTF_8)
+            val file = AtomicFile(File(context.filesDir, BOTS_FILE_NAME))
+            if (file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()) {
+                val jsonString = file.openRead().bufferedReader(Charsets.UTF_8).use { it.readText() }
                 if (jsonString.isNotEmpty()) {
                     val arr = JSONArray(jsonString)
                     var hasPlainToken = false
