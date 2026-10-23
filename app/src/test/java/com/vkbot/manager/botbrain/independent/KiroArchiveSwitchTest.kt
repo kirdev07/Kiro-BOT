@@ -30,6 +30,17 @@ class KiroArchiveSwitchTest {
         assertNull(router.reply(1L, "как дела"))
     }
 
+    @Test fun sharedIndexDoesNotShareContextBetweenSessions() {
+        val router = KiroArchiveSwitch(rows, maxSessions = 2)
+        assertEquals("здравствуй", router.reply(101L, "привет"))
+        assertEquals("здравствуй", router.reply(202L, "привет"))
+        assertEquals("хорошо", router.reply(101L, "как дела"))
+        assertEquals("хорошо", router.reply(202L, "как дела"))
+        router.forget(101L)
+        assertNull(router.reply(101L, "как дела"))
+        assertEquals("хорошо", router.reply(202L, "как дела"))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsZeroSessionLimit() {
         KiroArchiveSwitch(rows, maxSessions = 0)
