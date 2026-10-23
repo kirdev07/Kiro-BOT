@@ -29,7 +29,7 @@ class KiroBrainImportActivity : AppCompatActivity() {
                 }
                 output.toByteArray()
             } ?: error("Не удалось открыть файл")
-            val source = bytes.toString(Charsets.UTF_8)
+            val source = bytes.toString(Charsets.UTF_8).removePrefix("\uFEFF")
             val rows = if (source.startsWith("# KIRO-ANSWER-ARCHIVE/1")) {
                 KiroAnswerArchive.parse(source)
             } else {
@@ -45,7 +45,7 @@ class KiroBrainImportActivity : AppCompatActivity() {
                 .setPositiveButton("Импортировать") { _, _ ->
                     try {
                         val target = File(filesDir, "kiro_answer_archive_v1.txt")
-                        val temp = File(filesDir, "kiro_answer_archive_v1.txt.tmp")
+                        
                         if (target.exists()) {
                             val backup = File(filesDir, "kiro_answer_archive_v1.txt.bak")
                             require(target.copyTo(backup, overwrite = true).exists())
@@ -60,7 +60,7 @@ class KiroBrainImportActivity : AppCompatActivity() {
                             atomic.failWrite(stream)
                             throw error
                         }
-                        temp.delete()
+
                         Toast.makeText(this, "Архив сохранён. Экспериментальный движок не включён.", Toast.LENGTH_LONG).show()
                     } catch (e: Exception) {
                         Toast.makeText(this, "Ошибка сохранения: ${e.message}", Toast.LENGTH_LONG).show()
