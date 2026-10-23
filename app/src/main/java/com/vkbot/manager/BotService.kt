@@ -287,6 +287,30 @@ class BotService : Service() {
         updateStatusNotification()
     } }
 
+    // Experimental engine: disabled by default. Files must be independently authored.
+    // Preference is intentionally not exposed in production UI before device validation.
+    private val experimentalBrains = ConcurrentHashMap<Int, com.vkbot.manager.botbrain.independent.KiroBrainSwitch>()
+
+    private fun experimentalReply(botId: Int, chatId: Long, text: String): String? {
+        if (!sharedPrefs.getBoolean("kiro_independent_engine_experimental", false)) return null
+        val switch = experimentalBrains[botId] ?: synchronized(experimentalBrains) {
+            experimentalBrains[botId] ?: run {
+                val replyFile = File(filesDir, "kiro_replies_v1.txt")
+                val dialogFile = File(filesDir, "kiro_dialogs_v1.txt")
+                if (!replyFile.isFile || !dialogFile.isFile) return null
+                val bundle = com.vkbot.manager.botbrain.independent.KiroBrainBundle.load(
+                    replyFile.readText(Charsets.UTF_8),
+                    dialogFile.readText(Charsets.UTF_8)
+                )
+                com.vkbot.manager.botbrain.independent.KiroBrainSwitch(bundle).also {
+                    it.setEnabled(true)
+                    experimentalBrains[botId] = it
+                }
+            }
+        }
+        return switch.reply(chatId, text)
+    }
+
     private fun processSmartMessage(message: Map<String, Any>, botId: Int): Map<String, Any>? {
         return try {
             val text = message["text"] as? String ?: ""
@@ -323,6 +347,20 @@ class BotService : Service() {
             // Беседа/группа: сообщение пришло не в личку (адресат ≠ автор)
             val peerId = (message["peer_id"] as? Number)?.toString()
             val isGroupChat = peerId != null && peerId != fromId
+            // Keep existing command, spam, group and attachment checks above this point.
+            // The new engine uses only separate, user-provided KIRO-* files.
+            if (sharedPrefs.getBoolean("kiro_independent_engine_experimental", false)) {
+                val isolatedChatId = (message["peer_id"] as? Number)?.toLong() ?: fromId.toLong()
+                val independent = experimentalReply(botId, isolatedChatId, text)
+                if (independent != null) {
+                    val answered = sharedPrefs.getLong("bot_${botId}_answered", 0)
+                    sharedPrefs.edit { putLong("bot_${botId}_answered", answered + 1) }
+                    RecentDialog.add(this, authorName, text, independent)
+                    return mapOf("text" to independent)
+                }
+                // No legacy fallback while experimental engine is selected.
+                return null
+            }
             val response = botBrain?.processMessage(BotMessage(text, fromId, authorName, isGroupChat = isGroupChat, chatId = peerId.orEmpty()))
             if (response != null && !response.isEmpty) {
                 val currentAnswered = sharedPrefs.getLong("bot_${botId}_answered", 0)
