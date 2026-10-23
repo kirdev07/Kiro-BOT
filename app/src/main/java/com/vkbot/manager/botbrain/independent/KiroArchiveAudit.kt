@@ -31,7 +31,7 @@ internal object KiroArchiveAudit {
             val hasContext = row.requiredContext.isNotBlank() || row.resultContext.isNotBlank()
             val limit = row.repetitionLimit.trim()
             val badLimit = limit.isNotEmpty() && (limit.toIntOrNull() == null || limit.toInt() < 0)
-            val empty = row.question.isBlank() || row.answer.isBlank()
+            val empty = row.question.isBlank() || (row.answer.isBlank() && row.attachments.isBlank())
             if (hasMedia) media++
             if (hasPattern) patterns++
             if (hasContext) contextual++
