@@ -296,7 +296,7 @@ class BotService : Service() {
     private val experimentalArchives =
         ConcurrentHashMap<Int, com.vkbot.manager.botbrain.independent.KiroArchiveSwitch>()
 
-    private fun experimentalArchiveReply(botId: Int, sessionId: Long, text: String): String? {
+    private fun experimentalArchiveReply(botId: Int, sessionId: Long, text: String): com.vkbot.manager.botbrain.independent.KiroArchiveConversation.Reply? {
         val archive = File(filesDir, "kiro_answer_archive_v1.txt")
         if (!archive.isFile) return null
         val engine = experimentalArchives[botId] ?: synchronized(experimentalArchives) {
@@ -309,7 +309,7 @@ class BotService : Service() {
                 }
             }
         }
-        return engine.reply(sessionId, text)
+        return engine.replyRich(sessionId, text)
     }
 
     private fun experimentalReply(botId: Int, chatId: Long, text: String): String? {
@@ -376,16 +376,16 @@ class BotService : Service() {
                 val sessionId = if (isGroupChat) {
                     (isolatedChatId * 31L) xor fromId.toLong()
                 } else isolatedChatId
-                val independent = if (File(filesDir, "kiro_answer_archive_v1.txt").isFile) {
-                    experimentalArchiveReply(botId, sessionId, text)
-                } else {
-                    experimentalReply(botId, sessionId, text)
-                }
+                val archiveMode = File(filesDir, "kiro_answer_archive_v1.txt").isFile
+                val rich = if (archiveMode) experimentalArchiveReply(botId, sessionId, text) else null
+                val independent = rich?.text ?: if (!archiveMode) experimentalReply(botId, sessionId, text) else null
                 if (independent != null) {
                     val answered = sharedPrefs.getLong("bot_${botId}_answered", 0)
                     sharedPrefs.edit { putLong("bot_${botId}_answered", answered + 1) }
                     RecentDialog.add(this, authorName, text, independent)
-                    return mapOf("text" to independent)
+                    // TelegramBot already handles Attachment URLs and VK legacy links.
+                    val media = rich?.attachments.orEmpty().map { com.vkbot.manager.botbrain.Attachment(it) }
+                    return mapOf("text" to independent, "attachments" to media)
                 }
                 // No legacy fallback while experimental engine is selected.
                 return null
