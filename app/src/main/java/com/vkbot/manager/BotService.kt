@@ -291,6 +291,27 @@ class BotService : Service() {
     // Preference is intentionally not exposed in production UI before device validation.
     private val experimentalBrains = ConcurrentHashMap<Int, com.vkbot.manager.botbrain.independent.KiroBrainSwitch>()
 
+    // Separate opt-in archive: a prevalidated KIRO-ANSWER-ARCHIVE/1 file.
+    // The original answer.txt is never read or modified by this route.
+    private val experimentalArchives =
+        ConcurrentHashMap<Int, com.vkbot.manager.botbrain.independent.KiroArchiveSwitch>()
+
+    private fun experimentalArchiveReply(botId: Int, sessionId: Long, text: String): String? {
+        val archive = File(filesDir, "kiro_answer_archive_v1.txt")
+        if (!archive.isFile) return null
+        val engine = experimentalArchives[botId] ?: synchronized(experimentalArchives) {
+            experimentalArchives[botId] ?: run {
+                val rows = com.vkbot.manager.botbrain.independent.KiroAnswerArchive.parse(
+                    archive.readText(Charsets.UTF_8)
+                )
+                com.vkbot.manager.botbrain.independent.KiroArchiveSwitch(rows).also {
+                    experimentalArchives[botId] = it
+                }
+            }
+        }
+        return engine.reply(sessionId, text)
+    }
+
     private fun experimentalReply(botId: Int, chatId: Long, text: String): String? {
         if (!sharedPrefs.getBoolean("kiro_independent_engine_experimental", false)) return null
         val switch = experimentalBrains[botId] ?: synchronized(experimentalBrains) {
@@ -351,7 +372,15 @@ class BotService : Service() {
             // The new engine uses only separate, user-provided KIRO-* files.
             if (sharedPrefs.getBoolean("kiro_independent_engine_experimental", false)) {
                 val isolatedChatId = (message["peer_id"] as? Number)?.toLong() ?: fromId.toLong()
-                val independent = experimentalReply(botId, isolatedChatId, text)
+                // Group users get separate dialog contexts; private chats keep chat identity.
+                val sessionId = if (isGroupChat) {
+                    (isolatedChatId * 31L) xor fromId.toLong()
+                } else isolatedChatId
+                val independent = if (File(filesDir, "kiro_answer_archive_v1.txt").isFile) {
+                    experimentalArchiveReply(botId, sessionId, text)
+                } else {
+                    experimentalReply(botId, sessionId, text)
+                }
                 if (independent != null) {
                     val answered = sharedPrefs.getLong("bot_${botId}_answered", 0)
                     sharedPrefs.edit { putLong("bot_${botId}_answered", answered + 1) }
