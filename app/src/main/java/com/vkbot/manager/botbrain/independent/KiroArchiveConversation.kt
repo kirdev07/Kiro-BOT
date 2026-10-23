@@ -11,8 +11,13 @@ internal class KiroArchiveConversation(rows: List<KiroAnswerArchive.Row>) {
     private var lastLine: Int? = null
     private var consecutive = 0
 
+    data class Reply(val text: String, val attachments: List<String>)
+
     @Synchronized
-    fun respond(message: String): String? {
+    fun respond(message: String): String? = respondRich(message)?.text
+
+    @Synchronized
+    fun respondRich(message: String): Reply? {
         if (message.isBlank()) return null
         val candidate = index.find(message, context) { row ->
             val limit = row.repetitionLimit.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
@@ -23,7 +28,8 @@ internal class KiroArchiveConversation(rows: List<KiroAnswerArchive.Row>) {
         consecutive = if (lastLine == candidate.lineNumber) consecutive + 1 else 1
         lastLine = candidate.lineNumber
         if (candidate.resultContext.isNotBlank()) context = candidate.resultContext.trim()
-        return candidate.answer.replace("<br>", "\n").replace("<pipe>", "|")
+        return Reply(candidate.answer.replace("<br>", "\n").replace("<pipe>", "|"),
+            KiroSafeAttachments.parse(candidate.attachments) ?: emptyList())
     }
 
     @Synchronized
