@@ -37,7 +37,7 @@ class SettingsFragment : Fragment() {
         loadSettings()
         setupListeners()
         val importButton = android.widget.Button(requireContext()).apply {
-            text = "Импорт базы Kiro Brain (эксперимент)"
+            text = "Kiro Brain 4.0 — импорт базы ответов"
             setOnClickListener { startActivity(Intent(requireContext(), KiroBrainImportActivity::class.java)) }
         }
         binding.groupDeveloper.addView(importButton)
