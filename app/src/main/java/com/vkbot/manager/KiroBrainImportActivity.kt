@@ -46,12 +46,21 @@ class KiroBrainImportActivity : AppCompatActivity() {
                     try {
                         val target = File(filesDir, "kiro_answer_archive_v1.txt")
                         val temp = File(filesDir, "kiro_answer_archive_v1.txt.tmp")
-                        temp.writeText(archive, Charsets.UTF_8)
                         if (target.exists()) {
                             val backup = File(filesDir, "kiro_answer_archive_v1.txt.bak")
                             require(target.copyTo(backup, overwrite = true).exists())
                         }
-                        require(temp.renameTo(target)) { "Не удалось сохранить архив" }
+                        // AtomicFile protects the previous archive against interrupted writes.
+                        val atomic = android.util.AtomicFile(target)
+                        val stream = atomic.startWrite()
+                        try {
+                            stream.write(archive.toByteArray(Charsets.UTF_8))
+                            atomic.finishWrite(stream)
+                        } catch (error: Exception) {
+                            atomic.failWrite(stream)
+                            throw error
+                        }
+                        temp.delete()
                         Toast.makeText(this, "Архив сохранён. Экспериментальный движок не включён.", Toast.LENGTH_LONG).show()
                     } catch (e: Exception) {
                         Toast.makeText(this, "Ошибка сохранения: ${e.message}", Toast.LENGTH_LONG).show()
