@@ -4,8 +4,8 @@ package com.vkbot.manager.botbrain.independent
  * Experimental archive-backed session. Each instance belongs to one conversation.
  * Unsupported attachments and patterns are deliberately not executed.
  */
-internal class KiroArchiveConversation(rows: List<KiroAnswerArchive.Row>) {
-    private val index = KiroArchiveReplyIndex(rows)
+internal class KiroArchiveConversation(private val index: KiroArchiveReplyIndex) {
+    constructor(rows: List<KiroAnswerArchive.Row>) : this(KiroArchiveReplyIndex(rows))
     private var context = ""
     private val usage = mutableMapOf<Int, Int>()
     private var lastLine: Int? = null
