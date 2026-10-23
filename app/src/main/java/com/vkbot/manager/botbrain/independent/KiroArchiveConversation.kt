@@ -25,7 +25,7 @@ internal class KiroArchiveConversation(private val index: KiroArchiveReplyIndex)
         } ?: return null
 
         usage[candidate.lineNumber] = (usage[candidate.lineNumber] ?: 0) + 1
-        consecutive = if (lastLine == candidate.lineNumber) consecutive + 1 else 1
+        consecutive = if (lastLine == candidate.lineNumber) (consecutive + 1).coerceAtLeast(1) else 1
         lastLine = candidate.lineNumber
         if (candidate.resultContext.isNotBlank()) context = candidate.resultContext.trim()
         return Reply(candidate.answer.replace("<br>", "\n").replace("<pipe>", "|"),
