@@ -295,19 +295,21 @@ class BotService : Service() {
     // The original answer.txt is never read or modified by this route.
     private val experimentalArchives =
         ConcurrentHashMap<Int, com.vkbot.manager.botbrain.independent.KiroArchiveSwitch>()
+    private val experimentalArchiveVersions = ConcurrentHashMap<Int, Pair<Long, Long>>()
 
     private fun experimentalArchiveReply(botId: Int, sessionId: Long, text: String): com.vkbot.manager.botbrain.independent.KiroArchiveConversation.Reply? {
         val archive = File(filesDir, "kiro_answer_archive_v1.txt")
         if (!archive.isFile) return null
-        val engine = experimentalArchives[botId] ?: synchronized(experimentalArchives) {
-            experimentalArchives[botId] ?: run {
+        val version = archive.lastModified() to archive.length()
+        val engine = synchronized(experimentalArchives) {
+            if (experimentalArchiveVersions[botId] != version || experimentalArchives[botId] == null) {
                 val rows = com.vkbot.manager.botbrain.independent.KiroAnswerArchive.parse(
                     archive.readText(Charsets.UTF_8)
                 )
-                com.vkbot.manager.botbrain.independent.KiroArchiveSwitch(rows).also {
-                    experimentalArchives[botId] = it
-                }
+                experimentalArchives[botId] = com.vkbot.manager.botbrain.independent.KiroArchiveSwitch(rows)
+                experimentalArchiveVersions[botId] = version
             }
+            experimentalArchives.getValue(botId)
         }
         return engine.replyRich(sessionId, text)
     }
