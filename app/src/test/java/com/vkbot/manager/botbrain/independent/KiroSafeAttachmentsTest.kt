@@ -84,6 +84,13 @@ class KiroSafeAttachmentsTest {
         ).forEach { assertNull("Unexpectedly accepted: $it", KiroSafeAttachments.parse(it)) }
     }
 
+    @Test fun rejectsPrivateUseAndSingleLabelHosts() {
+        listOf("https://printer/image.jpg", "https://service.onion/image.jpg",
+            "https://router.arpa/image.jpg", "https://host.example/image.jpg").forEach {
+            assertNull("Unexpectedly accepted: $it", KiroSafeAttachments.parse(it))
+        }
+    }
+
     @Test fun rejectsReservedDnsZones() {
         listOf("https://foo.test/image.jpg", "https://foo.invalid/image.jpg",
             "https://test/image.jpg", "https://invalid/image.jpg").forEach {
