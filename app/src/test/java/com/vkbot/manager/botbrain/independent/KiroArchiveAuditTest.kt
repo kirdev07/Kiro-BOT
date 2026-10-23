@@ -39,4 +39,13 @@ class KiroArchiveAuditTest {
         assertEquals(1, report.ready)
         assertEquals(1, report.media)
     }
+    @Test fun sameQuestionDifferentMediaOrContextIsNotDuplicate() {
+        val rows = KiroAnswerArchive.importLegacy(
+            "фото|вот|https://example.com/a.jpg\\n" +
+                "фото|вот|https://example.com/b.jpg\\n" +
+                "фото|вот|https://example.com/a.jpg|||after|"
+        )
+        assertEquals(0, KiroArchiveAudit.inspect(rows).duplicatePairs)
+    }
+
 }
