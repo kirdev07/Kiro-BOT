@@ -9,6 +9,7 @@ internal object KiroSafeAttachments {
     private fun isLocalHost(host: String): Boolean {
         val h = host.lowercase().trimEnd('.')
         if (h == "localhost" || h.endsWith(".localhost") ||
+            h == "local" || h == "internal" || h == "home.arpa" || h.endsWith(".home.arpa") ||
             h.endsWith(".local") || h.endsWith(".internal")) return true
         // Reject IPv6 literals (including IPv4-mapped IPv6) until transport validation exists.
         if (h.contains(':')) return true
@@ -45,6 +46,7 @@ internal object KiroSafeAttachments {
             }
             val uri = try { java.net.URI(item) } catch (_: Exception) { return null }
             if (uri.scheme?.lowercase() != "https" || uri.host.isNullOrBlank() ||
+                uri.port != -1 && uri.port != 443 ||
                 uri.userInfo != null || uri.fragment != null) return null
             val host = uri.host.lowercase().trimEnd('.')
             if (isLocalHost(host)) return null
