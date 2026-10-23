@@ -60,6 +60,13 @@ class KiroArchiveConversationTest {
         assertNull(engine.respond("   "))
     }
 
+    @Test fun encodedPipeQuestionMatchesDecodedText() {
+        val engine = KiroArchiveConversation(KiroAnswerArchive.importLegacy(
+            "да<pipe>нет|ответ"
+        ))
+        assertEquals("ответ", engine.respond("да|нет"))
+    }
+
     @Test fun punctuationOnlyExactRuleDoesNotShadowOtherMessages() {
         val rows = KiroAnswerArchive.importLegacy("!!!|неправильно\n*|универсальный")
         val engine = KiroArchiveConversation(rows)
